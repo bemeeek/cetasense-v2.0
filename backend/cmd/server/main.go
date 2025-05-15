@@ -2,20 +2,16 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
-	"cetasense-v2.0/internal/data"
+	"cetasense-v2.0/internal/router" // Gantilah dengan path proyek Anda
 )
 
 func main() {
-	db := data.InitDB()
-	defer db.Close()
+	// Set up router
+	router.SetupRoutes()
 
-	fmt.Println("Database connection established successfully")
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello, World!")
-	})
-
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	// Menjalankan server pada port 8080
+	fmt.Println("Server berjalan di http://localhost:8080")
+	http.ListenAndServe(":8080", nil)
 }
