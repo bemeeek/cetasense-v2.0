@@ -91,6 +91,33 @@ func UploadRoomData(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func UploadDataFilter(w http.ResponseWriter, r *http.Request) {
+	var Request struct {
+		NamaFilter string `json:"nama_filter"`
+	}
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&Request); err != nil {
+		http.Error(w, fmt.Sprintf("Error decoding JSON: %v", err), http.StatusBadRequest)
+		return
+	}
+	db := database.InitDB()
+	defer database.CloseDB(db)
+	if Request.NamaFilter == "" {
+		http.Error(w, "Data filter is empty", http.StatusBadRequest)
+		return
+	}
+	// Simpan data filter ke database
+	_, err := db.Exec("INSERT INTO filter (id, nama_filter) VALUES (UUID(), ?)", Request.NamaFilter)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	response := map[string]string{"status": "success"}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
 // getDataFrame retrieves data from the database based on the provided idBatch
 func GetDataFrame(w http.ResponseWriter, r *http.Request) {
 	idBatch := r.URL.Path[len("/dataframe/"):]
