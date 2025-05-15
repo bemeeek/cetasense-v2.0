@@ -4,27 +4,16 @@ import (
 	"fmt"
 	"net/http"
 
-	"cetasense-v2.0/internal/data"
+	"cetasense-v2.0/internal/data/data"
 	// Updated import path as per module
 )
 
-func UploadDataFrame(w http.ResponseWriter, r *http.Request) {
-	data.UploadDataFrame(w, r)
-}
-
-func GetDataFrame(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "GetDataFrame not implemented", http.StatusNotImplemented)
-}
-
 func SetupRoutes() {
-	http.HandleFunc("/upload", UploadDataFrame)
-	http.HandleFunc("/dataframe/", GetDataFrame)
+	http.HandleFunc("/upload-data", data.UploadDataParameter)
+	http.HandleFunc("/upload-room-data", data.UploadRoomData)
 
-	fmt.Println("Routes set up successfully")
+	fmt.Println("Routes set up suscessfully")
 	fmt.Println("Server is running on port 8080")
-	fmt.Println("Use Ctrl+C to stop the server")
-	fmt.Println("Use /upload to upload data")
-	fmt.Println("Use /dataframe/{idBatch} to retrieve data")
-	fmt.Println("Use /dataframe to retrieve all data")
-	fmt.Println("Use /dataframe/{idBatch}/delete to delete data")
+	fmt.Println("Visit http://localhost:8080/upload-data to upload data")
+	fmt.Println("Visit http://localhost:8080/upload-room-data to upload room data")
 }
