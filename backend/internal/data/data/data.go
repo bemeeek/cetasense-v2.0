@@ -20,7 +20,9 @@ func UploadDataParameter(w http.ResponseWriter, r *http.Request) {
 	// Implementasi fungsi untuk mengupload data frame ke database
 
 	var Request struct {
-		Data DataFrame `json:"data"`
+		Data        DataFrame `json:"data"`
+		NamaRuangan string    `json:"nama_ruangan"`
+		NamaFilter  string    `json:"nama_filter"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -41,8 +43,14 @@ func UploadDataParameter(w http.ResponseWriter, r *http.Request) {
 
 	for i := 0; i < len(Request.Data.Amp); i++ {
 		// Simpan setiap elemen ke dalam database
-		_, err := db.Exec("INSERT INTO data (data_amplitude, data_phase, data_rssi, id_batch, id_ruangan, id_filter, timestamp) VALUES (?, ?, ?, ?, UUID(), UUID(), ?)",
-			Request.Data.Amp[i], Request.Data.Phase[i], Request.Data.Rssi[i], 1, Request.Data.Timestamp[i])
+		_, err := db.Exec(`
+			INSERT INTO data (data_amplitude, data_phase, data_rssi, id_batch, id_ruangan, id_filter, timestamp) 
+			VALUES (?, ?, ?, ?, 
+				(SELECT id FROM ruangan WHERE nama_ruangan = ?), 
+				(SELECT id FROM filter WHERE nama_filter = ?), 
+				?)`,
+			Request.Data.Amp[i], Request.Data.Phase[i], Request.Data.Rssi[i], 1,
+			Request.NamaRuangan, Request.NamaFilter, Request.Data.Timestamp[i])
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
