@@ -5,30 +5,22 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
+	"cetasense-v2.0/config"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/joho/godotenv"
 )
 
 var DB *sql.DB
 
-func InitDB() {
-	// Load .env (development only)
-	if os.Getenv("APP_ENV") != "production" {
-		if err := godotenv.Load(); err != nil {
-			log.Printf("Warning: .env file not found: %v", err)
-		}
-	}
-
-	// Build DSN
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_NAME"),
+func InitDB(cfg *config.Config) *sql.DB {
+	// Load configuration
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
+		cfg.DBUser,
+		cfg.DBPassword,
+		cfg.DBHost,
+		cfg.DBPort,
+		cfg.DBName,
 	)
 
 	// Open connection
@@ -53,4 +45,12 @@ func InitDB() {
 	}
 
 	log.Println("Successfully connected to MariaDB/MySQL")
+	return DB
+}
+
+func CloseDB() {
+	if DB != nil {
+		DB.Close()
+		log.Println("Database connection closed")
+	}
 }
