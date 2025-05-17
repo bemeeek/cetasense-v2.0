@@ -73,27 +73,52 @@ func UploadRoomData(w http.ResponseWriter, r *http.Request) {
 		PosisiRX       float64 `json:"posisi_rx"`
 	}
 
+	// Decode JSON request body
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&Request); err != nil {
 		http.Error(w, fmt.Sprintf("Error decoding JSON: %v", err), http.StatusBadRequest)
 		return
 	}
 
+	// Validasi input
+	if Request.NamaRuangan == "" {
+		http.Error(w, "Nama ruangan tidak boleh kosong", http.StatusBadRequest)
+		return
+	}
+	if Request.PanjangRuangan <= 0 || Request.LebarRuangan <= 0 {
+		http.Error(w, "Panjang dan lebar ruangan harus lebih besar dari 0", http.StatusBadRequest)
+		return
+	}
+	if Request.PosisiTX <= 0 || Request.PosisiRX <= 0 {
+		http.Error(w, "Posisi TX dan RX harus lebih besar dari 0", http.StatusBadRequest)
+		return
+	}
+
+	// Koneksi ke database
 	db := database.InitDB()
 	defer database.CloseDB(db)
 
-	if Request.NamaRuangan == "" || Request.PanjangRuangan <= 0 || Request.LebarRuangan <= 0 || Request.PosisiTX <= 0 || Request.PosisiRX <= 0 {
-		http.Error(w, "Data ruangan is empty", http.StatusBadRequest)
-		return
-	}
 	// Simpan data ruangan ke database
-	_, err := db.Exec("INSERT INTO ruangan (id, nama_ruangan, panjang_ruangan, lebar_ruangan, posisi_tx, posisi_rx) VALUES (UUID(), ?, ?, ?, ?, ?)",
+	result, err := db.Exec("INSERT INTO ruangan (id, nama_ruangan, panjang_ruangan, lebar_ruangan, posisi_tx, posisi_rx) VALUES (UUID(), ?, ?, ?, ?, ?)",
 		Request.NamaRuangan, Request.PanjangRuangan, Request.LebarRuangan, Request.PosisiTX, Request.PosisiRX)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Error saving room data: %v", err), http.StatusInternalServerError)
 		return
 	}
-	response := map[string]string{"status": "success"}
+
+	// Mengambil ID dari record yang baru saja dimasukkan
+	roomID, err := result.LastInsertId()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error retrieving last inserted ID: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Response sukses
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Data ruangan berhasil disimpan",
+		"room_id": roomID,
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
