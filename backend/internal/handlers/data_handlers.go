@@ -23,18 +23,26 @@ func NewRoomHandler(repo repositories.RuanganRepository) *RoomHandler {
 	}
 }
 
+// CreateRoom dengan DTO
 func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
-	var room models.Ruangan
-	if err := json.NewDecoder(r.Body).Decode(&room); err != nil {
+	var request models.Ruangan
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.validate.Struct(room); err != nil {
+	if err := h.validate.Struct(request); err != nil {
 		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	room := models.Ruangan{
+		NamaRuangan: request.NamaRuangan,
+		Panjang:     request.Panjang,
+		Lebar:       request.Lebar,
+		PosisiTX:    request.PosisiTX,
+		PosisiRX:    request.PosisiRX,
+	}
 	room.GenerateID()
 
 	if err := h.repo.Create(r.Context(), &room); err != nil {
@@ -45,38 +53,30 @@ func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusCreated, room)
 }
 
-func (h *RoomHandler) GetRoomByID(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	room, err := h.repo.GetByID(r.Context(), id)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			respondError(w, http.StatusNotFound, "Room not found")
-			return
-		}
-		http.Error(w, "Failed to get room: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	respondJSON(w, http.StatusOK, room)
-}
+// UpdateRoom dengan DTO
 func (h *RoomHandler) UpdateRoom(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	var room models.Ruangan
-	if err := json.NewDecoder(r.Body).Decode(&room); err != nil {
+	var request models.UpdateRuanganRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.validate.Struct(room); err != nil {
+	if err := h.validate.Struct(request); err != nil {
 		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	room.ID = id
+	room := models.Ruangan{
+		ID:          id, // ID diambil dari URL
+		NamaRuangan: request.NamaRuangan,
+		Panjang:     request.Panjang,
+		Lebar:       request.Lebar,
+		PosisiTX:    request.PosisiTX,
+		PosisiRX:    request.PosisiRX,
+	}
 
 	if err := h.repo.Update(r.Context(), &room); err != nil {
 		if err == sql.ErrNoRows {
@@ -89,6 +89,7 @@ func (h *RoomHandler) UpdateRoom(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusOK, room)
 }
+
 func (h *RoomHandler) DeleteRoom(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -112,6 +113,23 @@ func (h *RoomHandler) GetAllRooms(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, rooms)
+}
+
+func (h *RoomHandler) GetRoomByID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	room, err := h.repo.GetByID(r.Context(), id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			respondError(w, http.StatusNotFound, "Room not found")
+			return
+		}
+		http.Error(w, "Failed to get room: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, room)
 }
 
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {

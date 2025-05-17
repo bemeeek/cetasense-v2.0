@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"time"
 
 	"cetasense-v2.0/internal/models"
 )
@@ -21,8 +20,8 @@ func NewRuanganRepository(db *sql.DB) *RuanganRepository {
 func (r *RuanganRepository) Create(ctx context.Context, ruangan *models.Ruangan) error {
 	stmt, err := r.db.PrepareContext(ctx, `
         INSERT INTO ruangan 
-        (id, nama_ruangan, panjang_ruangan, lebar_ruangan, posisi_tx, posisi_rx, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`)
+        (id, nama_ruangan, panjang_ruangan, lebar_ruangan, posisi_tx, posisi_rx)
+        VALUES (?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return fmt.Errorf("prepare error: %w", err)
 	}
@@ -35,7 +34,6 @@ func (r *RuanganRepository) Create(ctx context.Context, ruangan *models.Ruangan)
 		ruangan.Lebar,
 		ruangan.PosisiTX,
 		ruangan.PosisiRX,
-		time.Now().UTC(),
 	)
 
 	return err
@@ -46,7 +44,7 @@ func (r *RuanganRepository) GetByID(ctx context.Context, id string) (*models.Rua
 	row := r.db.QueryRowContext(ctx, `
         SELECT 
             id, nama_ruangan, panjang_ruangan, lebar_ruangan, 
-            posisi_tx, posisi_rx, created_at 
+            posisi_tx, posisi_rx
         FROM ruangan 
         WHERE id = ?`, id)
 
@@ -58,7 +56,6 @@ func (r *RuanganRepository) GetByID(ctx context.Context, id string) (*models.Rua
 		&ruangan.Lebar,
 		&ruangan.PosisiTX,
 		&ruangan.PosisiRX,
-		&ruangan.CreatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -115,7 +112,7 @@ func (r *RuanganRepository) GetAll(ctx context.Context) ([]*models.Ruangan, erro
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT 
 			id, nama_ruangan, panjang_ruangan, lebar_ruangan, 
-			posisi_tx, posisi_rx, created_at 
+			posisi_tx, posisi_rx
 		FROM ruangan`)
 	if err != nil {
 		return nil, fmt.Errorf("query error: %w", err)
@@ -132,7 +129,6 @@ func (r *RuanganRepository) GetAll(ctx context.Context) ([]*models.Ruangan, erro
 			&ruangan.Lebar,
 			&ruangan.PosisiTX,
 			&ruangan.PosisiRX,
-			&ruangan.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan error: %w", err)
 		}
