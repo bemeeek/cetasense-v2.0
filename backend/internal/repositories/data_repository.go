@@ -15,19 +15,43 @@ func NewDataRepository(db *sql.DB) *DataRepository {
 	return &DataRepository{db: db}
 }
 
+func (r *DataRepository) GetIDByNamaRuangan(ctx context.Context, namaRuangan string) (string, error) {
+	row := r.db.QueryRowContext(ctx, `
+		SELECT id FROM ruangan WHERE nama_ruangan = ?`, namaRuangan)
+
+	var id string
+	err := row.Scan(&id)
+	if err != nil {
+		return "", err
+	}
+
+	return id, nil
+}
+
+func (r *DataRepository) GetIDByNamaFilter(ctx context.Context, namaFilter string) (string, error) {
+	row := r.db.QueryRowContext(ctx, `
+		SELECT id FROM filter WHERE nama_filter = ?`, namaFilter)
+	var id string
+	err := row.Scan(&id)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
 // &ruangan.CreatedAt,
 func (r *DataRepository) Create(ctx context.Context, data *models.Data) error {
 	stmt, err := r.db.PrepareContext(ctx, `
 		INSERT INTO data 
-		(id, data_amplitude, data_phase, data_rssi, id_batch, id_ruangan, id_filter, timestamp)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+		(data_amplitude, data_phase, data_rssi, id_batch, id_ruangan, id_filter, timestamp)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`)
+
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
 	_, err = stmt.ExecContext(ctx,
-		data.ID,
 		data.Amplitude,
 		data.Phase,
 		data.RSSI,
@@ -41,16 +65,18 @@ func (r *DataRepository) Create(ctx context.Context, data *models.Data) error {
 }
 
 // GetByID untuk mendapatkan data berdasarkan ID
-func (r *DataRepository) GetByID(ctx context.Context, id string) (*models.Data, error) {
+func (r *DataRepository) GetByID(ctx context.Context, id string, namaRuangan string, namaFilter string) (*models.Data, error) {
 	row := r.db.QueryRowContext(ctx, `
 		SELECT 
 			id, data_amplitude, data_phase, data_rssi, id_batch, id_ruangan, id_filter, timestamp 
 		FROM data 
 		WHERE id = ?`, id)
+	if err := row.Err(); err != nil {
+		return nil, err
+	}
 
 	var data models.Data
 	err := row.Scan(
-		&data.ID,
 		&data.Amplitude,
 		&data.Phase,
 		&data.RSSI,
@@ -71,7 +97,8 @@ func (r *DataRepository) GetByID(ctx context.Context, id string) (*models.Data, 
 func (r *DataRepository) Update(ctx context.Context, data *models.Data) error {
 	stmt, err := r.db.PrepareContext(ctx, `
 		UPDATE data 
-		SET data_amplitude = ?, data_phase = ?, data_rssi = ?, id_batch = ?, id_ruangan = ?, id_filter = ?, timestamp = ?
+		SET data_amplitude = ?, data_phase = ?, data_rssi = ?, id_batch = ?, 
+			id_ruangan = ?, id_filter = ?, timestamp = ?
 		WHERE id = ?`)
 	if err != nil {
 		return err
@@ -86,7 +113,6 @@ func (r *DataRepository) Update(ctx context.Context, data *models.Data) error {
 		data.RuanganID,
 		data.FilterID,
 		data.Timestamp,
-		data.ID,
 	)
 
 	return err
@@ -105,4 +131,36 @@ func (r *DataRepository) Delete(ctx context.Context, id string) error {
 	_, err = stmt.ExecContext(ctx, id)
 
 	return err
+}
+
+// GetAll untuk mendapatkan semua data
+func (r *DataRepository) GetAll(ctx context.Context) ([]*models.Data, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT 
+			id, data_amplitude, data_phase, data_rssi, id_batch, id_ruangan, id_filter, timestamp 
+		FROM data`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var data []*models.Data
+	for rows.Next() {
+		var d models.Data
+		err := rows.Scan(
+			&d.Amplitude,
+			&d.Phase,
+			&d.RSSI,
+			&d.BatchID,
+			&d.RuanganID,
+			&d.FilterID,
+			&d.Timestamp,
+		)
+		if err != nil {
+			return nil, err
+		}
+		data = append(data, &d)
+	}
+
+	return data, nil
 }

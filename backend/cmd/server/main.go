@@ -29,15 +29,21 @@ func main() {
 
 	// Initialize repositories
 	ruanganRepo := repositories.NewRuanganRepository(db)
+	filterRepo := repositories.NewFilterRepository(db)
+	dataRepo := repositories.NewDataRepository(db)
 
 	// Initialize handlers
 	roomHandler := handlers.NewRoomHandler(*ruanganRepo)
+	filterHandler := handlers.NewFilterHandler(*filterRepo)
+	dataHandler := handlers.NewDataHandler(*dataRepo)
 
 	// Create router
 	router := mux.NewRouter()
 
 	// Register routes
 	routes.RegisterRoomRoutes(router, roomHandler)
+	routes.RegisterFilterRoutes(router, filterHandler)
+	routes.RegisterDataRoutes(router, dataHandler)
 
 	// Add middleware
 	router.Use(loggingMiddleware)
@@ -58,9 +64,21 @@ func main() {
 
 	go func() {
 		log.Printf("Server started on %s", server.Addr)
+		log.Printf("/api/data untuk CreateData")
+		log.Printf("/api/data/{id} untuk GetDataByID")
+		log.Printf("/api/data untuk GetAllData")
+		log.Printf("/api/data/{id} untuk UpdateData")
+		log.Printf("/api/filter untuk CreateFilter")
+		log.Printf("/api/filter/{id} untuk GetFilterByID")
+		log.Printf("/api/filter untuk GetAllFilter")
+		log.Printf("/api/filter/{id} untuk UpdateFilter")
+		log.Printf("/api/ruangan untuk CreateRuangan")
+		log.Printf("/api/ruangan/{id} untuk GetRuanganByID")
+		// Start server
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)
 		}
+
 	}()
 
 	<-done

@@ -117,3 +117,11 @@ func (r *FilterRepository) Delete(ctx context.Context, id string) error {
 
 	return nil
 }
+
+// Close untuk menutup koneksi database
+func (r *FilterRepository) Close() error {
+	if r.db != nil {
+		return r.db.Close()
+	}
+	return nil
+}

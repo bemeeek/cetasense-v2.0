@@ -1,14 +1,12 @@
 package handlers
 
 import (
-	"database/sql"
 	"encoding/json"
 	"net/http"
 
 	"cetasense-v2.0/internal/models"
 	"cetasense-v2.0/internal/repositories"
 	"github.com/go-playground/validator/v10"
-	"github.com/gorilla/mux"
 )
 
 type DataHandler struct {
@@ -36,12 +34,20 @@ func (h *DataHandler) CreateData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	request.GenerateID()
-
-	if err := h.validate.Struct(request); err != nil {
-		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
+	ruanganID, err := h.repo.GetIDByNamaRuangan(r.Context(), request.NamaRuangan)
+	if err != nil {
+		http.Error(w, "Failed to get Ruangan ID: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	filterID, err := h.repo.GetIDByNamaFilter(r.Context(), request.NamaFilter)
+	if err != nil {
+		http.Error(w, "Failed to get Filter ID: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	request.RuanganID = ruanganID
+	request.FilterID = filterID
 
 	if err := h.repo.Create(r.Context(), &request); err != nil {
 		http.Error(w, "Failed to create data: "+err.Error(), http.StatusInternalServerError)
@@ -51,41 +57,11 @@ func (h *DataHandler) CreateData(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusCreated, request)
 }
 
-// UpdateData dengan DTO
-func (h *DataHandler) UpdateData(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	var request models.Data
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request payload")
-		return
-	}
-
-	// Validasi input
-	if err := h.validate.Struct(request); err != nil {
-		respondError(w, http.StatusBadRequest, "Validation error: "+err.Error())
-		return
-	}
-
-	// Pastikan ID dari URL digunakan
-	data := models.Data{
-		ID:        id,
-		Amplitude: request.Amplitude,
-		Phase:     request.Phase,
-		RSSI:      request.RSSI,
-		BatchID:   request.BatchID,
-		RuanganID: request.RuanganID,
-		FilterID:  request.FilterID,
-		Timestamp: request.Timestamp,
-	}
-
-	if err := h.repo.Update(r.Context(), &data); err != nil {
-		if err == sql.ErrNoRows {
-			respondError(w, http.StatusNotFound, "Data not found")
-			return
-		}
-		respondError(w, http.StatusInternalServerError, "Failed to update data: "+err.Error())
+// GetAllData dengan DTO
+func (h *DataHandler) GetAllData(w http.ResponseWriter, r *http.Request) {
+	data, err := h.repo.GetAll(r.Context())
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to get data: "+err.Error())
 		return
 	}
 

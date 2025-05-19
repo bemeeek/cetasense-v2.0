@@ -76,3 +76,33 @@ func (h *FilterHandler) UpdateFilter(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusOK, filter)
 }
+
+// GetFilterByID untuk mendapatkan filter berdasarkan ID
+func (h *FilterHandler) GetFilterByID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	filter, err := h.repo.GetByID(r.Context(), id)
+	if err != nil {
+		http.Error(w, "Failed to get filter: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if filter == nil {
+		http.Error(w, "Filter not found", http.StatusNotFound)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, filter)
+}
+
+// GetAllFilter untuk mendapatkan semua filter
+func (h *FilterHandler) GetAllFilter(w http.ResponseWriter, r *http.Request) {
+	filters, err := h.repo.GetAll(r.Context())
+	if err != nil {
+		http.Error(w, "Failed to get filters: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, filters)
+}
