@@ -15,6 +15,7 @@ import (
 	"cetasense-v2.0/internal/handlers"
 	"cetasense-v2.0/internal/repositories"
 	"cetasense-v2.0/internal/routes"
+	"cetasense-v2.0/internal/services"
 
 	"github.com/gorilla/mux"
 )
@@ -36,6 +37,8 @@ func main() {
 	roomHandler := handlers.NewRoomHandler(*ruanganRepo)
 	filterHandler := handlers.NewFilterHandler(*filterRepo)
 	dataHandler := handlers.NewDataHandler(*dataRepo)
+	csvProcessor := services.NewCSVProcessor(*dataRepo)
+	uploadHandler := handlers.NewUploadHandler(csvProcessor)
 
 	// Create router
 	router := mux.NewRouter()
@@ -44,6 +47,7 @@ func main() {
 	routes.RegisterRoomRoutes(router, roomHandler)
 	routes.RegisterFilterRoutes(router, filterHandler)
 	routes.RegisterDataRoutes(router, dataHandler)
+	routes.RegisterUploadRoutes(router, uploadHandler)
 
 	// Add middleware
 	router.Use(loggingMiddleware)
@@ -74,6 +78,7 @@ func main() {
 		log.Printf("/api/filter/{id} untuk UpdateFilter")
 		log.Printf("/api/ruangan untuk CreateRuangan")
 		log.Printf("/api/ruangan/{id} untuk GetRuanganByID")
+		log.Printf("/api/upload untuk upload data CSI csv")
 		// Start server
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)
