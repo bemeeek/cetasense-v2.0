@@ -42,4 +42,38 @@ export const fetchFilter = async (): Promise<Filter[]> => {
     return response.data;
 }
 
-export 
+export const uploadCSV = async (
+    file: File,
+    ruanganID: string,
+    filterID: string,
+    batchName: string
+): Promise<any> => {
+    const formData = new FormData();
+    formData.append('csv_file', file);
+    formData.append('ruangan_id', ruanganID);
+    formData.append('filter_id', filterID);
+    formData.append('batch_name', batchName);
+
+    return await api.post('/upload', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+}
+
+export const fetchBatchData = async (
+    batchName: string
+): Promise<Data[]> => {
+    const response = await api.get<Data[]>(`/data?batch=${batchName}`);
+    return response.data;
+}
+
+export const fetchAllData = async (): Promise<Data[]> => {
+    const response = await api.get<Data[]>('/data/batches');
+    return response.data;
+}
+
+export const fetchAllBatches = async (): Promise<string[]> => {
+    const response = await api.get<string[]>('/batches');
+    return response.data;
+}
