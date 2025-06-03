@@ -7,7 +7,7 @@ const UploadForm: React.FC = () => {
   const [filterList, setFilterList] = useState<Filter[]>([]);
   const [selectedRuangan, setSelectedRuangan] = useState<string>('');
   const [selectedFilter, setSelectedFilter] = useState<string>('');
-  const [batchName, setBatchName] = useState<string>('Batch-' + new Date().toISOString().slice(0, 10));
+  const [batchId, setBatchId] = useState<number>(0); // Batch ID as a number
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>('');
@@ -39,40 +39,80 @@ const UploadForm: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!file || !selectedRuangan || !selectedFilter || !batchName) {
-      setMessage('Please fill all fields and select a file');
-      setIsSuccess(false);
-      return;
+    // Validasi lebih ketat
+    if (!file) {
+        setMessage('Please select a CSV file');
+        setIsSuccess(false);
+        return;
     }
-    
+
+    if (!selectedRuangan || selectedRuangan.trim() === '') {
+        setMessage('Please select a valid ruangan');
+        setIsSuccess(false);
+        return;
+    }
+
+    if (!selectedFilter || selectedFilter.trim() === '') {
+        setMessage('Please select a valid filter');
+        setIsSuccess(false);
+        return;
+    }
+
+    if (batchId === 0) {
+        setMessage('Please enter a valid batch ID');
+        setIsSuccess(false);
+        return;
+    }
+
     try {
-      setIsUploading(true);
-      setMessage('Uploading file...');
-      
-      const response = await uploadCSV(
-        file, 
-        selectedRuangan,  // Sekarang nama ruangan
-        selectedFilter,   // Sekarang nama filter
-        batchName
-      );
-      
-      setMessage(`File uploaded successfully! Rows processed: ${response.data.rows_processed}`);
-      setIsSuccess(true);
-      
-      // Reset form
-      setFile(null);
-      setBatchName('Batch-' + new Date().toISOString().slice(0, 10));
+        setIsUploading(true);
+        setMessage('Uploading file...');
+        
+        console.log("Uploading with:", {
+            ruangan: selectedRuangan,  // Pastikan selectedRuangan ada
+            filter: selectedFilter,
+            batchId: batchId,
+            file: file.name,
+            size: file.size
+        });
+
+        const response = await uploadCSV(
+            file, 
+            selectedRuangan,  // Kirim nama_ruangan
+            selectedFilter, 
+            batchId
+        );
+        
+        console.log("Upload response:", response);
+        console.log("Response data:", response.data);
+        console.log("Rows processed:", response.data.rows_processed);
+        console.log("Selected ruangan:", selectedRuangan);
+        
+        setMessage(`File uploaded successfully! Rows processed: ${response.data.rows_processed}`);
+        setIsSuccess(true);
+        
+        // Reset form
+        setFile(null);
     } catch (error: any) {
-      const errMsg = error.response?.data?.message || error.message;
-      setMessage('Upload failed: ' + errMsg);
-      setIsSuccess(false);
+        let errorMessage = 'Upload failed';
+        
+        if (error.response) {
+            errorMessage += `: ${error.response.status} - ${error.response.data.message || error.response.data}`;
+        } else if (error.request) {
+            errorMessage += ': No response from server';
+        } else {
+            errorMessage += `: ${error.message}`;
+        }
+        
+        setMessage(errorMessage);
+        setIsSuccess(false);
     } finally {
-      setIsUploading(false);
+        setIsUploading(false);
     }
-  };
+};
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -119,17 +159,14 @@ const UploadForm: React.FC = () => {
         
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Batch Name
+            Batch ID (number)
           </label>
           <div className="flex">
-            <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500">
-              Batch-
-            </span>
             <input
-              type="text"
-              value={batchName.replace('Batch-', '')}
-              onChange={(e) => setBatchName('Batch-' + e.target.value)}
-              className="flex-1 min-w-0 block w-full px-3 py-2 rounded-r-md border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              type="number" // Ensure input type is number
+              value={batchId}
+              onChange={(e) => setBatchId(Number(e.target.value))}
+              className="w-full p-2 border border-gray-300 rounded-md"
               disabled={isUploading}
             />
           </div>

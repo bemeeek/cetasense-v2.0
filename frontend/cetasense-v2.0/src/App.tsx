@@ -1,6 +1,5 @@
 import React from 'react';
 import UploadForm from './components/UploadForm';
-import BatchList from './components/BatchList';
 
 const App: React.FC = () => {
   return (
@@ -23,13 +22,6 @@ const App: React.FC = () => {
             <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
               <h2 className="text-xl font-semibold text-gray-800 mb-6 pb-2 border-b border-gray-100">Data Upload</h2>
               <UploadForm />
-            </div>
-          </div>
-
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-              <h2 className="text-xl font-semibold text-gray-800 mb-6 pb-2 border-b border-gray-100">Data Batches</h2>
-              <BatchList />
             </div>
           </div>
         </div>

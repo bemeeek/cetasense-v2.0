@@ -39,6 +39,27 @@ func (r *RuanganRepository) Create(ctx context.Context, ruangan *models.Ruangan)
 	return err
 }
 
+func (r *RuanganRepository) GetRuanganByNama(ctx context.Context, nama string) (*models.Ruangan, error) {
+	row := r.db.QueryRowContext(ctx, `
+        SELECT id, nama_ruangan, panjang_ruangan, lebar_ruangan, posisi_tx, posisi_rx 
+        FROM ruangan 
+        WHERE nama_ruangan = ?`, nama)
+
+	var ruangan models.Ruangan
+	err := row.Scan(
+		&ruangan.ID,
+		&ruangan.NamaRuangan,
+		&ruangan.Panjang,
+		&ruangan.Lebar,
+		&ruangan.PosisiTX,
+		&ruangan.PosisiRX,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("ruangan dengan nama '%s' tidak ditemukan: %v", nama, err)
+	}
+	return &ruangan, nil
+}
+
 // GetByID dengan error handling
 func (r *RuanganRepository) GetByID(ctx context.Context, id string) (*models.Ruangan, error) {
 	row := r.db.QueryRowContext(ctx, `

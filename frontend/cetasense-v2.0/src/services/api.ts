@@ -5,7 +5,7 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
-    timeout: 10000,
+    timeout: 10000, // 10 seconds timeout
 });
 
 export interface Ruangan {
@@ -28,32 +28,42 @@ export interface Data {
     phase: number[];
     rssi: number[];
     timestamp: string[];
-    batchID: string;
+    batchID: number;  // Changed batchID to number for consistency
     ruanganID: string;
     filterID: string;
 }
 
 export const fetchRuangan = async (): Promise<Ruangan[]> => {
-    const response = await api.get<Ruangan[]>('/ruangan');
-    return response.data;
+    try {
+        const response = await api.get<Ruangan[]>('/ruangan');
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching Ruangan:", error);
+        throw new Error("Failed to fetch Ruangan.");
+    }
 }
 
 export const fetchFilter = async (): Promise<Filter[]> => {
-    const response = await api.get<Filter[]>('/filter');
-    return response.data;
+    try {
+        const response = await api.get<Filter[]>('/filter');
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching Filter:", error);
+        throw new Error("Failed to fetch Filter.");
+    }
 }
 
 export const uploadCSV = async (
     file: File,
-    namaRuangan: string, // Sekarang nama ruangan
-    namaFilter: string,  // Sekarang nama filter
-    batchName: string
+    ruanganID: string,
+    filterID: string,
+    batchId: number // Ubah menjadi number
 ): Promise<any> => {
     const formData = new FormData();
     formData.append('csv_file', file);
-    formData.append('nama_ruangan', namaRuangan); // Key diubah
-    formData.append('nama_filter', namaFilter);   // Key diubah
-    formData.append('batch_name', batchName);
+    formData.append('nama_ruangan', ruanganID);
+    formData.append('nama_filter', filterID);
+    formData.append('batch_id', batchId.toString()); // Konversi ke string
 
     return await api.post('/upload', formData, {
         headers: {
@@ -63,18 +73,15 @@ export const uploadCSV = async (
 }
 
 export const fetchBatchData = async (
-    batchName: string
+    batchId: number
 ): Promise<Data[]> => {
-    const response = await api.get<Data[]>(`/data?batch=${batchName}`);
-    return response.data;
+    try {
+        const response = await api.get<Data[]>(`/data?batch=${batchId}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching batch data:", error);
+        throw new Error("Failed to fetch batch data.");
+    }
 }
 
-export const fetchAllData = async (): Promise<Data[]> => {
-    const response = await api.get<Data[]>('/data/batches');
-    return response.data;
-}
 
-export const fetchAllBatches = async (): Promise<string[]> => {
-    const response = await api.get<string[]>('/batches');
-    return response.data;
-}

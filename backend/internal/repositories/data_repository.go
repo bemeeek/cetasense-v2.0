@@ -55,23 +55,31 @@ func (r *DataRepository) GetFilterByNama(ctx context.Context, nama string) (*mod
 }
 
 func (r *DataRepository) Create(ctx context.Context, data *models.Data) error {
-	// Ambil ID Ruangan berdasarkan nama yang diterima
+	// Memulai transaksi
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %v", err)
+	}
+
+	// Mendapatkan ID Ruangan berdasarkan nama
 	ruangan, err := r.GetRuanganByNama(ctx, data.NamaRuangan)
 	if err != nil {
-		return fmt.Errorf("failed to find ruangan: %v", err) // Berikan error yang jelas jika ruangan tidak ditemukan
+		tx.Rollback() // Rollback jika terjadi error
+		return fmt.Errorf("failed to find ruangan: %v", err)
 	}
-	data.RuanganID = ruangan.ID // Menyimpan id_ruangan yang valid
+	data.RuanganID = ruangan.ID
 
-	// Ambil ID Filter berdasarkan nama yang diterima
+	// Mendapatkan ID Filter berdasarkan nama
 	filter, err := r.GetFilterByNama(ctx, data.NamaFilter)
 	if err != nil {
-		return fmt.Errorf("failed to find filter: %v", err) // Berikan error yang jelas jika filter tidak ditemukan
+		tx.Rollback()
+		return fmt.Errorf("failed to find filter: %v", err)
 	}
-	data.FilterID = filter.ID // Menyimpan id_filter yang valid
+	data.FilterID = filter.ID
 
-	// Iterasi untuk memasukkan data ke dalam database
+	// Iterasi untuk memasukkan data CSV ke dalam database
 	for i := 0; i < len(data.Amplitude); i++ {
-		_, err := r.db.ExecContext(ctx, `
+		_, err := tx.ExecContext(ctx, `
             INSERT INTO data 
             (data_amplitude, data_phase, data_rssi, id_batch, id_ruangan, id_filter, timestamp)
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -84,9 +92,16 @@ func (r *DataRepository) Create(ctx context.Context, data *models.Data) error {
 			data.Timestamp[i])
 
 		if err != nil {
-			return fmt.Errorf("failed to insert data at row %d: %v", i, err) // Error per row
+			tx.Rollback() // Rollback jika ada error
+			return fmt.Errorf("failed to insert data at row %d: %v", i, err)
 		}
 	}
+
+	// Commit transaksi jika semua berhasil
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
 	return nil
 }
 
@@ -189,4 +204,34 @@ func (r *DataRepository) GetAll(ctx context.Context) ([]*models.Data, error) {
 	}
 
 	return data, nil
+}
+
+// Fungsi untuk mendapatkan ID batch berdasarkan nama
+func (r *DataRepository) GetBatchIDByName(ctx context.Context, batchName string) (int, error) {
+	row := r.db.QueryRowContext(ctx, `
+        SELECT id FROM batch WHERE name = ?`, batchName)
+
+	var batchID int
+	err := row.Scan(&batchID)
+	if err != nil {
+		return 0, fmt.Errorf("batch dengan nama '%s' tidak ditemukan: %v", batchName, err)
+	}
+
+	return batchID, nil
+}
+
+// Fungsi untuk membuat batch baru jika belum ada
+func (r *DataRepository) CreateBatch(ctx context.Context, batchName string) (int, error) {
+	result, err := r.db.ExecContext(ctx, `
+        INSERT INTO batch (name) VALUES (?)`, batchName)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create batch: %v", err)
+	}
+
+	lastInsertID, err := result.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get last insert id: %v", err)
+	}
+
+	return int(lastInsertID), nil
 }
