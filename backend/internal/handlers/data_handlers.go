@@ -35,23 +35,6 @@ func (h *DataHandler) CreateData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Mendapatkan RuanganID dan FilterID berdasarkan nama
-	ruanganID, err := h.repo.GetIDByNamaRuangan(r.Context(), request.NamaRuangan)
-	if err != nil {
-		http.Error(w, "Failed to get Ruangan ID: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	filterID, err := h.repo.GetIDByNamaFilter(r.Context(), request.NamaFilter)
-	if err != nil {
-		http.Error(w, "Failed to get Filter ID: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Set RuanganID dan FilterID di data request
-	request.RuanganID = ruanganID
-	request.FilterID = filterID
-
 	// Simpan data ke dalam database
 	if err := h.repo.Create(r.Context(), &request); err != nil {
 		http.Error(w, "Failed to create data: "+err.Error(), http.StatusInternalServerError)

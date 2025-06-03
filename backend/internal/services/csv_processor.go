@@ -28,14 +28,19 @@ func NewCSVProcessor(dataRepo repositories.DataRepository) *CSVProcessor {
 
 func (p *CSVProcessor) ProcessCSIUpload(
 	file io.Reader,
-	ruanganID string,
-	filterID string,
+	namaRuangan string, // Sekarang menerima nama ruangan
+	namaFilter string, // Sekarang menerima nama filter
 	batchName string,
 ) (*UploadStats, error) {
 	stats := &UploadStats{}
 	reader := csv.NewReader(file)
 
-	_, _ = reader.Read() // Skip header row
+	// Skip header row
+	_, err := reader.Read()
+	if err != nil {
+		stats.Errors = append(stats.Errors, "Failed to read header: "+err.Error())
+		return stats, nil
+	}
 
 	batchID, err := strconv.Atoi(batchName)
 	if err != nil {
@@ -43,50 +48,77 @@ func (p *CSVProcessor) ProcessCSIUpload(
 		return stats, nil
 	}
 
+	// Dapatkan ID ruangan berdasarkan nama
+	ruangan, err := p.dataRepo.GetRuanganByNama(context.Background(), namaRuangan)
+	if err != nil {
+		stats.Errors = append(stats.Errors, "Ruangan not found: "+namaRuangan)
+		return stats, nil
+	}
+
+	// Dapatkan ID filter berdasarkan nama
+	filter, err := p.dataRepo.GetFilterByNama(context.Background(), namaFilter)
+	if err != nil {
+		stats.Errors = append(stats.Errors, "Filter not found: "+namaFilter)
+		return stats, nil
+	}
+
 	for {
 		record, err := reader.Read()
 		if err == io.EOF {
-			break // End of file
+			break
 		}
 		if err != nil {
-			stats.Errors = append(stats.Errors, "CSV read error :"+err.Error())
+			stats.Errors = append(stats.Errors, "CSV read error: "+err.Error())
+			continue
 		}
 
 		if len(record) < 4 {
 			stats.Errors = append(stats.Errors, "Invalid record length")
-			continue // Skip invalid records
+			continue
 		}
 
-		amplitude, _ := strconv.ParseFloat(record[0], 64)
-		phase, _ := strconv.ParseFloat(record[1], 64)
-		rssi, _ := strconv.ParseFloat(record[2], 64)
-		timestamp := record[3]
+		amplitude, err := strconv.ParseFloat(record[0], 64)
+		if err != nil {
+			stats.Errors = append(stats.Errors, "Invalid amplitude: "+record[0])
+			continue
+		}
 
-		// Parse the record fields
+		phase, err := strconv.ParseFloat(record[1], 64)
+		if err != nil {
+			stats.Errors = append(stats.Errors, "Invalid phase: "+record[1])
+			continue
+		}
+
+		rssi, err := strconv.ParseFloat(record[2], 64)
+		if err != nil {
+			stats.Errors = append(stats.Errors, "Invalid RSSI: "+record[2])
+			continue
+		}
+
+		timestamp := record[3]
 		parsedTime, err := time.Parse(time.RFC3339, timestamp)
 		if err != nil {
-			stats.Errors = append(stats.Errors, "Invalid timestamp format: "+timestamp)
-			continue // Skip record if timestamp parsing fails
+			stats.Errors = append(stats.Errors, "Invalid timestamp: "+timestamp)
+			continue
 		}
+
 		data := models.Data{
-			Amplitude:   []float64{amplitude},
-			Phase:       []float64{phase},
-			RSSI:        []float64{rssi},
-			BatchID:     batchID,
-			NamaRuangan: ruanganID,
-			FilterID:    filterID,
-			Timestamp:   []time.Time{parsedTime},
+			Amplitude: []float64{amplitude},
+			Phase:     []float64{phase},
+			RSSI:      []float64{rssi},
+			BatchID:   batchID,
+			RuanganID: ruangan.ID, // Gunakan ID ruangan
+			FilterID:  filter.ID,  // Gunakan ID filter
+			Timestamp: []time.Time{parsedTime},
 		}
 
 		err = p.dataRepo.Create(context.Background(), &data)
 		if err != nil {
-			stats.Errors = append(stats.Errors, "Database insert error: "+err.Error())
-			continue // Skip this record on error
-		} else {
-			stats.RowsProcessed++
+			stats.Errors = append(stats.Errors, "Database error: "+err.Error())
+			continue
 		}
+		stats.RowsProcessed++
 	}
 
-	// Return the upload statistics
 	return stats, nil
 }

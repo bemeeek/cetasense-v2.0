@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { FaUpload } from 'react-icons/fa';
 import { uploadCSV, fetchRuangan, fetchFilter, type Ruangan, type Filter } from '../services/api';
 
-
 const UploadForm: React.FC = () => {
   const [ruanganList, setRuanganList] = useState<Ruangan[]>([]);
   const [filterList, setFilterList] = useState<Filter[]>([]);
@@ -23,8 +22,8 @@ const UploadForm: React.FC = () => {
         setRuanganList(ruanganData);
         setFilterList(filterData);
         
-        if (ruanganData.length > 0) setSelectedRuangan(ruanganData[0].id);
-        if (filterData.length > 0) setSelectedFilter(filterData[0].id);
+        if (ruanganData.length > 0) setSelectedRuangan(ruanganData[0].nama_ruangan);
+        if (filterData.length > 0) setSelectedFilter(filterData[0].nama_filter);
       } catch (error) {
         setMessage('Failed to load options. Please check your backend connection.');
         console.error(error);
@@ -55,19 +54,20 @@ const UploadForm: React.FC = () => {
       
       const response = await uploadCSV(
         file, 
-        selectedRuangan, 
-        selectedFilter, 
+        selectedRuangan,  // Sekarang nama ruangan
+        selectedFilter,   // Sekarang nama filter
         batchName
       );
       
-      setMessage(`File uploaded successfully! Rows processed: ${response.data.rows_added}`);
+      setMessage(`File uploaded successfully! Rows processed: ${response.data.rows_processed}`);
       setIsSuccess(true);
       
       // Reset form
       setFile(null);
       setBatchName('Batch-' + new Date().toISOString().slice(0, 10));
-    } catch (error) {
-      setMessage('Upload failed: ' + (error as any).message);
+    } catch (error: any) {
+      const errMsg = error.response?.data?.message || error.message;
+      setMessage('Upload failed: ' + errMsg);
       setIsSuccess(false);
     } finally {
       setIsUploading(false);
@@ -75,73 +75,88 @@ const UploadForm: React.FC = () => {
   };
 
   return (
-    <div className="bg-whiterounded-lg shadow-md">
-      <h2 className="text-xl font-bold mb-4 text-gray-800">Upload CSI Data</h2>
+    <div className="bg-white rounded-lg shadow-md p-6">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800">Upload CSI Data</h2>
       
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Ruangan
-          </label>
-          <select
-            value={selectedRuangan}
-            onChange={(e) => setSelectedRuangan(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md"
-            disabled={isUploading}
-          >
-            {ruanganList.map(ruangan => (
-              <option key={ruangan.id} value={ruangan.id}>
-                {ruangan.nama_ruangan}
-              </option>
-            ))}
-          </select>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Ruangan
+            </label>
+            <select
+              value={selectedRuangan}
+              onChange={(e) => setSelectedRuangan(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              disabled={isUploading}
+            >
+              {ruanganList.map(ruangan => (
+                <option key={ruangan.id} value={ruangan.nama_ruangan}>
+                  {ruangan.nama_ruangan}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Filter
+            </label>
+            <select
+              value={selectedFilter}
+              onChange={(e) => setSelectedFilter(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              disabled={isUploading}
+            >
+              {filterList.map(filter => (
+                <option key={filter.id} value={filter.nama_filter}>
+                  {filter.nama_filter}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Filter
-          </label>
-          <select
-            value={selectedFilter}
-            onChange={(e) => setSelectedFilter(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md"
-            disabled={isUploading}
-          >
-            {filterList.map(filter => (
-              <option key={filter.id} value={filter.id}>
-                {filter.nama_filter}
-              </option>
-            ))}
-          </select>
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Batch Name
           </label>
-          <input
-            type="text"
-            value={batchName}
-            onChange={(e) => setBatchName(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md"
-            disabled={isUploading}
-          />
+          <div className="flex">
+            <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500">
+              Batch-
+            </span>
+            <input
+              type="text"
+              value={batchName.replace('Batch-', '')}
+              onChange={(e) => setBatchName('Batch-' + e.target.value)}
+              className="flex-1 min-w-0 block w-full px-3 py-2 rounded-r-md border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              disabled={isUploading}
+            />
+          </div>
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            CSV File
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            CSI Data File (CSV)
           </label>
           <div className="flex items-center justify-center w-full">
-            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+            <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <FaUpload className="w-8 h-8 mb-2 text-gray-500" />
+                <FaUpload className="w-10 h-10 mb-3 text-gray-400" />
                 {file ? (
-                  <p className="text-sm text-gray-500">{file.name}</p>
+                  <>
+                    <p className="mb-1 text-sm font-medium text-gray-700">{file.name}</p>
+                    <p className="text-xs text-gray-500">Click to change file</p>
+                  </>
                 ) : (
-                  <p className="text-sm text-gray-500">
-                    <span className="font-semibold">Click to upload</span> or drag and drop
-                  </p>
+                  <>
+                    <p className="mb-2 text-sm text-gray-500">
+                      <span className="font-semibold">Click to upload</span> or drag and drop
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      CSV files only (amplitude,phase,rssi,timestamp)
+                    </p>
+                  </>
                 )}
               </div>
               <input 
@@ -158,20 +173,49 @@ const UploadForm: React.FC = () => {
         <button
           type="submit"
           disabled={isUploading || !file}
-          className={`w-full py-2 px-4 rounded-md text-white font-medium ${
+          className={`w-full py-3 px-4 rounded-md text-white font-medium transition-colors ${
             isUploading || !file
               ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700'
+              : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
           }`}
         >
-          {isUploading ? 'Uploading...' : 'Upload CSV'}
+          {isUploading ? (
+            <span className="flex items-center justify-center">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Processing...
+            </span>
+          ) : (
+            'Upload CSI Data'
+          )}
         </button>
         
         {message && (
-          <div className={`p-3 rounded-md ${
-            isSuccess ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+          <div className={`p-4 rounded-md ${
+            isSuccess 
+              ? 'bg-green-50 text-green-800 border border-green-200' 
+              : 'bg-red-50 text-red-800 border border-red-200'
           }`}>
-            {message}
+            <div className="flex">
+              <div className="flex-shrink-0">
+                {isSuccess ? (
+                  <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+              <div className="ml-3">
+                <p className={`text-sm font-medium ${isSuccess ? 'text-green-800' : 'text-red-800'}`}>
+                  {message}
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </form>

@@ -3,19 +3,17 @@ package handlers
 import (
 	"net/http"
 
-	"cetasense-v2.0/internal/repositories"
 	"cetasense-v2.0/internal/services"
 )
 
 type UploadHandler struct {
-	csvService services.CSVProcessor
-	dataRepo   repositories.DataRepository
+	csvService *services.CSVProcessor
 }
 
 func NewUploadHandler(
 	csvService *services.CSVProcessor) *UploadHandler {
 	return &UploadHandler{
-		csvService: *csvService}
+		csvService: csvService}
 }
 
 func (h *UploadHandler) HandleUpload(w http.ResponseWriter, r *http.Request) {
@@ -24,32 +22,36 @@ func (h *UploadHandler) HandleUpload(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "Failed to parse form: "+err.Error())
 		return
 	}
-	ruanganID := r.FormValue("ruangan_id")
-	filterID := r.FormValue("filter_id")
+
+	namaRuangan := r.FormValue("nama_ruangan") // Sekarang nama ruangan
+	namaFilter := r.FormValue("nama_filter")   // Sekarang nama filter
 	batchName := r.FormValue("batch_name")
 
-	if ruanganID == "" || filterID == "" || batchName == "" {
-		respondError(w, http.StatusBadRequest, "Missing required fields: ruangan_id, filter_id, batch_name")
+	if namaRuangan == "" || namaFilter == "" || batchName == "" {
+		respondError(w, http.StatusBadRequest, "Missing required fields")
 		return
 	}
 
-	file, header, err := r.FormFile("file")
+	file, header, err := r.FormFile("csv_file")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Failed to get file: "+err.Error())
+		respondError(w, http.StatusBadRequest, "File error: "+err.Error())
 		return
 	}
 	defer file.Close()
 
-	stats, err := h.csvService.ProcessCSIUpload(file, ruanganID, filterID, batchName)
+	stats, err := h.csvService.ProcessCSIUpload(file, namaRuangan, namaFilter, batchName)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to process CSV: "+err.Error())
+		respondError(w, http.StatusInternalServerError, "Processing error: "+err.Error())
 		return
 	}
+
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"message":        "CSV processed successfully",
 		"rows_processed": stats.RowsProcessed,
 		"errors":         stats.Errors,
 		"file_name":      header.Filename,
-		"rows_added":     len(stats.Errors) == 0,
+		"ruangan":        namaRuangan,
+		"filter":         namaFilter,
+		"batch":          batchName,
 	})
 }

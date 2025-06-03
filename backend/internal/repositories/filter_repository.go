@@ -125,3 +125,22 @@ func (r *FilterRepository) Close() error {
 	}
 	return nil
 }
+
+func (r *DataRepository) GetAllBatchIDs(ctx context.Context) ([]int, error) {
+	rows, err := r.db.QueryContext(ctx, "SELECT DISTINCT id_batch FROM data")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var batches []int
+	for rows.Next() {
+		var batchID int
+		if err := rows.Scan(&batchID); err != nil {
+			return nil, err
+		}
+		batches = append(batches, batchID)
+	}
+
+	return batches, nil
+}

@@ -5,7 +5,7 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
-    timeout: 10000, // 10 seconds timeout
+    timeout: 10000,
 });
 
 export interface Ruangan {
@@ -13,13 +13,14 @@ export interface Ruangan {
     nama_ruangan: string;
     panjang: number;
     lebar: number;
-    posisiTX : number;
-    posisiRX : number;
+    posisiTX: number;
+    posisiRX: number;
 }
 
 export interface Filter {
-    id : string;
+    id: string;
     nama_filter: string;
+    description: string;
 }
 
 export interface Data {
@@ -44,14 +45,14 @@ export const fetchFilter = async (): Promise<Filter[]> => {
 
 export const uploadCSV = async (
     file: File,
-    ruanganID: string,
-    filterID: string,
+    namaRuangan: string, // Sekarang nama ruangan
+    namaFilter: string,  // Sekarang nama filter
     batchName: string
 ): Promise<any> => {
     const formData = new FormData();
     formData.append('csv_file', file);
-    formData.append('ruangan_id', ruanganID);
-    formData.append('filter_id', filterID);
+    formData.append('nama_ruangan', namaRuangan); // Key diubah
+    formData.append('nama_filter', namaFilter);   // Key diubah
     formData.append('batch_name', batchName);
 
     return await api.post('/upload', formData, {

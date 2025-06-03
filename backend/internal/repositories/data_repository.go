@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"cetasense-v2.0/internal/models"
 )
@@ -15,45 +16,75 @@ func NewDataRepository(db *sql.DB) *DataRepository {
 	return &DataRepository{db: db}
 }
 
-func (r *DataRepository) GetIDByNamaRuangan(ctx context.Context, NamaRuangan string) (string, error) {
+func (r *DataRepository) GetRuanganByNama(ctx context.Context, nama string) (*models.Ruangan, error) {
 	row := r.db.QueryRowContext(ctx, `
-		SELECT id FROM ruangan WHERE nama_ruangan = ?`, NamaRuangan)
-	var id string
-	err := row.Scan(&id)
-	if err != nil {
-		return "", err
-	}
+        SELECT id, nama_ruangan, panjang_ruangan, lebar_ruangan, posisi_tx, posisi_rx 
+        FROM ruangan 
+        WHERE nama_ruangan = ?`, nama)
 
-	return id, nil
+	var ruangan models.Ruangan
+	err := row.Scan(
+		&ruangan.ID,
+		&ruangan.NamaRuangan,
+		&ruangan.Panjang,
+		&ruangan.Lebar,
+		&ruangan.PosisiTX,
+		&ruangan.PosisiRX,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("ruangan dengan nama '%s' tidak ditemukan: %v", nama, err) // Error lebih spesifik jika tidak ditemukan
+	}
+	return &ruangan, nil
 }
 
-func (r *DataRepository) GetIDByNamaFilter(ctx context.Context, NamaFilter string) (string, error) {
+func (r *DataRepository) GetFilterByNama(ctx context.Context, nama string) (*models.Filter, error) {
 	row := r.db.QueryRowContext(ctx, `
-		SELECT id FROM filter WHERE nama_filter = ?`, NamaFilter)
-	var id string
-	err := row.Scan(&id)
+        SELECT id, nama_filter 
+        FROM filter 
+        WHERE nama_filter = ?`, nama)
+
+	var filter models.Filter
+	err := row.Scan(
+		&filter.ID,
+		&filter.NamaFilter,
+	)
 	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("filter dengan nama '%s' tidak ditemukan: %v", nama, err) // Error lebih spesifik jika tidak ditemukan
 	}
-	return id, nil
+	return &filter, nil
 }
 
-// &ruangan.CreatedAt,
 func (r *DataRepository) Create(ctx context.Context, data *models.Data) error {
-	// Iterasi untuk memasukkan setiap elemen dalam array
+	// Ambil ID Ruangan berdasarkan nama yang diterima
+	ruangan, err := r.GetRuanganByNama(ctx, data.NamaRuangan)
+	if err != nil {
+		return fmt.Errorf("failed to find ruangan: %v", err) // Berikan error yang jelas jika ruangan tidak ditemukan
+	}
+	data.RuanganID = ruangan.ID // Menyimpan id_ruangan yang valid
+
+	// Ambil ID Filter berdasarkan nama yang diterima
+	filter, err := r.GetFilterByNama(ctx, data.NamaFilter)
+	if err != nil {
+		return fmt.Errorf("failed to find filter: %v", err) // Berikan error yang jelas jika filter tidak ditemukan
+	}
+	data.FilterID = filter.ID // Menyimpan id_filter yang valid
+
+	// Iterasi untuk memasukkan data ke dalam database
 	for i := 0; i < len(data.Amplitude); i++ {
 		_, err := r.db.ExecContext(ctx, `
-			INSERT INTO data 
-			(data_amplitude, data_phase, data_rssi, id_batch, id_ruangan, id_filter, timestamp)
-			VALUES (?, ?, ?, ?, 
-				(SELECT id FROM ruangan WHERE nama_ruangan = ?), 
-				(SELECT id FROM filter WHERE nama_filter = ?), 
-				?)`,
-			data.Amplitude[i], data.Phase[i], data.RSSI[i], data.BatchID,
-			data.NamaRuangan, data.NamaFilter, data.Timestamp[i])
+            INSERT INTO data 
+            (data_amplitude, data_phase, data_rssi, id_batch, id_ruangan, id_filter, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			data.Amplitude[i],
+			data.Phase[i],
+			data.RSSI[i],
+			data.BatchID,
+			data.RuanganID,
+			data.FilterID,
+			data.Timestamp[i])
 
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to insert data at row %d: %v", i, err) // Error per row
 		}
 	}
 	return nil

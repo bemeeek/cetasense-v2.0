@@ -40,6 +40,7 @@ func main() {
 	dataHandler := handlers.NewDataHandler(*dataRepo)
 	csvProcessor := services.NewCSVProcessor(*dataRepo)
 	uploadHandler := handlers.NewUploadHandler(csvProcessor)
+	batchHandler := handlers.NewBatchHandler(dataRepo)
 
 	// Create router
 	router := mux.NewRouter()
@@ -49,6 +50,7 @@ func main() {
 	routes.RegisterFilterRoutes(router, filterHandler)
 	routes.RegisterDataRoutes(router, dataHandler)
 	routes.RegisterUploadRoutes(router, uploadHandler)
+	routes.RegisterBatchRoutes(router, batchHandler)
 
 	// Add middleware
 	router.Use(loggingMiddleware)
