@@ -120,13 +120,15 @@ func (p *CSVProcessor) ProcessCSIUpload(
 		}
 
 		data := models.Data{
-			Amplitude: []float64{amplitude},
-			Phase:     []float64{phase},
-			RSSI:      []float64{rssi},
-			BatchID:   batchID,
-			RuanganID: ruangan.ID, // Gunakan ID ruangan yang ditemukan
-			FilterID:  filter.ID,
-			Timestamp: []time.Time{parsedTime},
+			Amplitude:   []float64{amplitude},
+			Phase:       []float64{phase},
+			RSSI:        []float64{rssi},
+			BatchID:     batchID,
+			RuanganID:   ruangan.ID, // ID ruangan yang valid
+			FilterID:    filter.ID,  // ID filter yang valid
+			NamaRuangan: ruangan.NamaRuangan,
+			NamaFilter:  filter.NamaFilter,
+			Timestamp:   []time.Time{parsedTime},
 		}
 
 		err = p.dataRepo.Create(context.Background(), &data)

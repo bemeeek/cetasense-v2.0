@@ -32,7 +32,7 @@ func (r *DataRepository) GetRuanganByNama(ctx context.Context, nama string) (*mo
 		&ruangan.PosisiRX,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("ruangan dengan nama '%s' tidak ditemukan: %v", nama, err) // Error lebih spesifik jika tidak ditemukan
+		return nil, fmt.Errorf("ruangan dengan nama '%s' tidak ditemukan: %v", nama, err)
 	}
 	return &ruangan, nil
 }
@@ -60,22 +60,6 @@ func (r *DataRepository) Create(ctx context.Context, data *models.Data) error {
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
-
-	// Mendapatkan ID Ruangan berdasarkan nama
-	ruangan, err := r.GetRuanganByNama(ctx, data.NamaRuangan)
-	if err != nil {
-		tx.Rollback() // Rollback jika terjadi error
-		return fmt.Errorf("failed to find ruangan: %v", err)
-	}
-	data.RuanganID = ruangan.ID
-
-	// Mendapatkan ID Filter berdasarkan nama
-	filter, err := r.GetFilterByNama(ctx, data.NamaFilter)
-	if err != nil {
-		tx.Rollback()
-		return fmt.Errorf("failed to find filter: %v", err)
-	}
-	data.FilterID = filter.ID
 
 	// Iterasi untuk memasukkan data CSV ke dalam database
 	for i := 0; i < len(data.Amplitude); i++ {
