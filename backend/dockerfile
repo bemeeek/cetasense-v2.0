@@ -1,0 +1,24 @@
+# Gunakan image Golang sebagai base image
+FROM golang:1.24
+
+# Tentukan direktori kerja di dalam kontainer
+WORKDIR /app
+
+# Salin file Go mod dan sum untuk menginstall dependensi
+COPY .env ./
+COPY go.mod go.sum ./
+
+# Install dependensi Go
+RUN go mod tidy
+
+# Salin seluruh kode sumber aplikasi
+COPY . .
+
+# Build aplikasi Golang
+RUN go build -o main ./cmd/server/main.go
+
+# Tentukan port yang akan digunakan oleh aplikasi
+EXPOSE 8080
+
+# Jalankan aplikasi
+CMD ["./main"]

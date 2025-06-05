@@ -1,0 +1,64 @@
+services:
+
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    environment:
+      MYSQL_ROOT_PASSWORD: Rafi111703
+      MYSQL_DATABASE: bismillahta
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+    networks:
+      - app-network
+
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+    volumes:
+      - ./tools/minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command: server /data --console-address ":9001"
+    networks:
+      - app-network
+
+  
+  backend:
+    build:
+      context: ./backend
+    container_name: backend
+    environment:
+      DB_USER: root
+      DB_PASSWORD: Rafi111703
+      DB_NAME: bismillahta
+      DB_HOST: mariadb  # Menggunakan nama layanan kontainer MariaDB
+      DB_PORT: 3306
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+      MINIO_BUCKET_NAME: bismillahta
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_SECURE: "false"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mariadb
+      - minio
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mariadb_data:
+    driver: local
+  minio_data:
+    driver: local

@@ -1,4 +1,3 @@
-// cmd/server/main.go
 package main
 
 import (
@@ -7,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -18,23 +18,47 @@ import (
 	"cetasense-v2.0/internal/services"
 
 	"github.com/gorilla/mux"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/rs/cors"
 )
 
 func main() {
-	// Load configuration
+	// 1. Load configuration from .env (handled inside LoadConfig)
 	cfg := config.LoadConfig()
 
-	// Initialize database
+	// 2. Initialise MariaDB connection
 	db := database.InitDB(cfg)
 	defer database.CloseDB()
 
-	// Initialize repositories
+	// 3. Initialise MinIO client
+	minioEndpoint := strings.TrimPrefix(cfg.MinioEndpoint, "http://")
+	minioClient, err := minio.New(minioEndpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(cfg.MinioUser, cfg.MinioPass, ""),
+		Secure: cfg.MinioSecure, // Use true if HTTPS is required
+	})
+	if err != nil {
+		log.Fatalf("Failed to connect to MinIO: %v", err)
+	}
+
+	// Ensure bucket exists (create if missing)
+	ctx := context.Background()
+	exists, err := minioClient.BucketExists(ctx, cfg.MinioBucket)
+	if err != nil {
+		log.Fatalf("Error checking bucket: %v", err)
+	}
+	if !exists {
+		log.Printf("Bucket %s does not exist, creating it now...", cfg.MinioBucket)
+		if err := minioClient.MakeBucket(ctx, cfg.MinioBucket, minio.MakeBucketOptions{}); err != nil {
+			log.Fatalf("Error creating bucket: %v", err)
+		}
+	}
+
+	// 4. Initialise repositories & handlers
 	ruanganRepo := repositories.NewRuanganRepository(db)
 	filterRepo := repositories.NewFilterRepository(db)
 	dataRepo := repositories.NewDataRepository(db)
 
-	// Initialize handlers
 	roomHandler := handlers.NewRoomHandler(*ruanganRepo)
 	filterHandler := handlers.NewFilterHandler(*filterRepo)
 	dataHandler := handlers.NewDataHandler(*dataRepo)
@@ -42,75 +66,65 @@ func main() {
 	uploadHandler := handlers.NewUploadHandler(csvProcessor)
 	batchHandler := handlers.NewBatchHandler(dataRepo)
 
-	// Create router
+	// Handler for MinIO (example upload)
+	minioHandler := handlers.NewMinioHandler(minioClient, cfg.MinioBucket)
+
+	// 5. Setup router & middleware
 	router := mux.NewRouter()
 
-	// Register routes
 	routes.RegisterRoomRoutes(router, roomHandler)
 	routes.RegisterFilterRoutes(router, filterHandler)
 	routes.RegisterDataRoutes(router, dataHandler)
 	routes.RegisterUploadRoutes(router, uploadHandler)
 	routes.RegisterBatchRoutes(router, batchHandler)
+	routes.RegisterMinioRoutes(router, minioHandler) // Register MinIO routes
 
-	// Add middleware
 	router.Use(loggingMiddleware)
 	router.Use(contentTypeMiddleware)
 
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173", "http://127.0.0.1:5173"}, // Allow all origins
+		AllowedOrigins:   []string{"http://localhost:5173", "http://127.0.0.1:5173"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
 	})
 
-	handler := c.Handler(router)
-
-	// Configure server
+	// Configure and start server
 	server := &http.Server{
 		Addr:         ":8080",
-		Handler:      handler,
+		Handler:      c.Handler(router),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Graceful shutdown
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	// Graceful shutdown logic
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		log.Printf("Server started on %s", server.Addr)
-		log.Printf("/api/data untuk CreateData")
-		log.Printf("/api/data/{id} untuk GetDataByID")
-		log.Printf("/api/data untuk GetAllData")
-		log.Printf("/api/data/{id} untuk UpdateData")
-		log.Printf("/api/filter untuk CreateFilter")
-		log.Printf("/api/filter/{id} untuk GetFilterByID")
-		log.Printf("/api/filter untuk GetAllFilter")
-		log.Printf("/api/filter/{id} untuk UpdateFilter")
-		log.Printf("/api/ruangan untuk CreateRuangan")
-		log.Printf("/api/ruangan/{id} untuk GetRuanganByID")
-		log.Printf("/api/upload untuk upload data CSI csv")
-		// Start server
+		log.Printf("⇢ API server started on %s", server.Addr)
+		defer log.Println("API server stopped")
+		defer database.CloseDB()
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)
 		}
-
 	}()
 
-	<-done
-	log.Println("Server is shutting down...")
+	<-shutdown
+	log.Println("⏻ Shutting down...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
 	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalf("Server shutdown failed: %v", err)
+		log.Fatalf("Graceful shutdown failed: %v", err)
 	}
-	log.Println("Server stopped")
+	log.Println("✅ Server stopped cleanly")
 }
 
-// Middleware untuk logging
+// ----------------------------------------------------------------------------
+// Middleware helpers
+// ----------------------------------------------------------------------------
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("%s %s %s", r.RemoteAddr, r.Method, r.URL)
@@ -118,7 +132,6 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// Middleware untuk content type JSON
 func contentTypeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
