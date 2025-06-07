@@ -5,6 +5,9 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func RegisterUploadRoutes(r *mux.Router, h *handlers.UploadHandler) {
-	r.HandleFunc("/api/upload", h.HandleUpload).Methods("POST")
+// RegisterUploadRoutes sets up the route for CSV uploads
+func RegisterUploadRoutes(r *mux.Router, uploadHandler *handlers.UploadHandler) {
+	// Endpoint to upload a CSV file
+	r.HandleFunc("/api/upload", uploadHandler.HandleUpload).Methods("POST")
+	r.HandleFunc("/api/uploads", uploadHandler.GetAllUploads).Methods("GET")
 }

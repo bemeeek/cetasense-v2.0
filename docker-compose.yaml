@@ -3,6 +3,7 @@ services:
   mariadb:
     image: mariadb:latest
     container_name: mariadb
+    restart: unless-stopped           # ← tambahkan ini
     environment:
       MYSQL_ROOT_PASSWORD: Rafi111703
       MYSQL_DATABASE: bismillahta
@@ -13,10 +14,10 @@ services:
     networks:
       - app-network
 
-
   minio:
     image: minio/minio:latest
     container_name: minio
+    restart: unless-stopped           # opsional, supaya MinIO juga auto-restart
     environment:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: password
@@ -29,16 +30,16 @@ services:
     networks:
       - app-network
 
-  
   backend:
     build:
       context: ./backend
     container_name: backend
+    restart: on-failure               # atau gunakan `unless-stopped` sesuai kebutuhan
     environment:
       DB_USER: root
       DB_PASSWORD: Rafi111703
       DB_NAME: bismillahta
-      DB_HOST: mariadb  # Menggunakan nama layanan kontainer MariaDB
+      DB_HOST: mariadb
       DB_PORT: 3306
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: password

@@ -33,6 +33,30 @@ export interface Data {
     filterID: string;
 }
 
+export interface CSIFileMeta {
+    id: string;
+    file_name: string;
+    object_path: string;
+    created_at: string;
+    ruangan_id : string;
+    filter_id : string;
+    nama_ruangan: string;
+    nama_filter: string;
+}
+
+export const fetchCSIFileMeta = async (): Promise<CSIFileMeta[]> => {
+    try {
+        const resp = await api.get<CSIFileMeta[]>('/uploads');
+        return resp.data;
+    } catch (err: any) {
+        // Kalau 404, return empty array
+        if (err.response?.status === 404) {
+        return [];
+        }
+        throw err;
+    }
+}
+
 export const fetchRuangan = async (): Promise<Ruangan[]> => {
     try {
         const response = await api.get<Ruangan[]>('/ruangan');
@@ -55,33 +79,18 @@ export const fetchFilter = async (): Promise<Filter[]> => {
 
 export const uploadCSV = async (
     file: File,
-    ruanganID: string,
-    filterID: string,
-    batchId: number // Ubah menjadi number
+    nama_ruangan: string,
+    nama_filter: string
 ): Promise<any> => {
     const formData = new FormData();
     formData.append('csv_file', file);
-    formData.append('nama_ruangan', ruanganID);
-    formData.append('nama_filter', filterID);
-    formData.append('batch_id', batchId.toString()); // Konversi ke string
-
+    formData.append('nama_ruangan', nama_ruangan);
+    formData.append('nama_filter', nama_filter);
     return await api.post('/upload', formData, {
         headers: {
             'Content-Type': 'multipart/form-data',
         },
     });
-}
-
-export const fetchBatchData = async (
-    batchId: number
-): Promise<Data[]> => {
-    try {
-        const response = await api.get<Data[]>(`/data?batch=${batchId}`);
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching batch data:", error);
-        throw new Error("Failed to fetch batch data.");
-    }
 }
 
 

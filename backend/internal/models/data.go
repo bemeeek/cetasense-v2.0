@@ -24,3 +24,14 @@ type HasilLokalisasi struct {
 	BatchID   int     `json:"batch_id" db:"id_batch" validate:"required"`
 	CreatedAt string  `json:"created_at" db:"created_at"`
 }
+
+type CSI_File struct {
+	ID          string `json:"id" db:"id" validate:"required"`
+	FileName    string `json:"file_name" db:"filename" validate:"required"`
+	ObjectPath  string `json:"object_path" db:"object_path" validate:"required"`
+	CreatedAt   string `json:"created_at" db:"created_at" validate:"required"`
+	RuanganID   string `json:"ruangan_id" db:"id_ruangan" validate:"required,uuid"`
+	FilterID    string `json:"filter_id" db:"id_filter" validate:"required,uuid"`
+	NamaRuangan string `json:"nama_ruangan" db:"nama_ruangan" validate:"required"`
+	NamaFilter  string `json:"nama_filter" db:"nama_filter" validate:"required"`
+}

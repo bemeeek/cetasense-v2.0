@@ -15,7 +15,6 @@ import (
 	"cetasense-v2.0/internal/handlers"
 	"cetasense-v2.0/internal/repositories"
 	"cetasense-v2.0/internal/routes"
-	"cetasense-v2.0/internal/services"
 
 	"github.com/gorilla/mux"
 	"github.com/minio/minio-go/v7"
@@ -58,16 +57,13 @@ func main() {
 	ruanganRepo := repositories.NewRuanganRepository(db)
 	filterRepo := repositories.NewFilterRepository(db)
 	dataRepo := repositories.NewDataRepository(db)
+	csvRepo := repositories.NewCSVFileRepository(db)
 
 	roomHandler := handlers.NewRoomHandler(*ruanganRepo)
 	filterHandler := handlers.NewFilterHandler(*filterRepo)
 	dataHandler := handlers.NewDataHandler(*dataRepo)
-	csvProcessor := services.NewCSVProcessor(*dataRepo)
-	uploadHandler := handlers.NewUploadHandler(csvProcessor)
+	uploadHandler := handlers.NewUploadHandler(csvRepo, minioClient, cfg.MinioBucket, cfg, ruanganRepo, filterRepo)
 	batchHandler := handlers.NewBatchHandler(dataRepo)
-
-	// Handler for MinIO (example upload)
-	minioHandler := handlers.NewMinioHandler(minioClient, cfg.MinioBucket)
 
 	// 5. Setup router & middleware
 	router := mux.NewRouter()
@@ -77,7 +73,6 @@ func main() {
 	routes.RegisterDataRoutes(router, dataHandler)
 	routes.RegisterUploadRoutes(router, uploadHandler)
 	routes.RegisterBatchRoutes(router, batchHandler)
-	routes.RegisterMinioRoutes(router, minioHandler) // Register MinIO routes
 
 	router.Use(loggingMiddleware)
 	router.Use(contentTypeMiddleware)

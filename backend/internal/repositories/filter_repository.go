@@ -144,3 +144,24 @@ func (r *DataRepository) GetAllBatchIDs(ctx context.Context) ([]int, error) {
 
 	return batches, nil
 }
+
+// GetFilterByNama retrieves a filter by its name
+func (r *FilterRepository) GetFilterByNama(ctx context.Context, namaFilter string) (*models.Filter, error) {
+	row := r.db.QueryRowContext(ctx, `
+		SELECT 
+			id, nama_filter
+		FROM filter 
+		WHERE nama_filter = ?`, namaFilter)
+
+	var filter models.Filter
+	err := row.Scan(
+		&filter.ID,
+		&filter.NamaFilter,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &filter, nil
+}
