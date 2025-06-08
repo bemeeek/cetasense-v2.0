@@ -48,7 +48,7 @@ const UploadForm: React.FC = () => {
 
     try {
       const resp = await uploadCSV(file, selectedRuangan, selectedFilter);
-      setMessage(`Upload successful: ${resp.data.rows_processed} rows`);
+      setMessage(`Upload successful: ${resp.data.file_name}`);
       setIsSuccess(true);
       setFile(null);
 

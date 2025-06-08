@@ -13,10 +13,17 @@ export interface Ruangan {
     nama_ruangan: string;
     panjang: number;
     lebar: number;
-    posisiTX: number;
-    posisiRX: number;
+    posisi_tx: number;
+    posisi_rx: number;
 }
 
+export interface RuanganCreate {
+    nama_ruangan: string;
+    panjang: number;
+    lebar: number;
+    posisi_tx: number;
+    posisi_rx: number;
+}
 export interface Filter {
     id: string;
     nama_filter: string;
@@ -67,6 +74,12 @@ export const fetchRuangan = async (): Promise<Ruangan[]> => {
     }
 }
 
+export const fetchRoom = () => api.get<Ruangan[]>('/ruangan');
+export const createRoom = (room: RuanganCreate) =>
+  api.post<RuanganCreate>('/ruangan', room)
+export const updateRoom = (room: Ruangan) => api.put<Ruangan>(`/ruangan/${room.id}`, room);
+export const deleteRoom = (id: string) => api.delete(`/ruangan/${id}`);
+
 export const fetchFilter = async (): Promise<Filter[]> => {
     try {
         const response = await api.get<Filter[]>('/filter');
@@ -76,6 +89,7 @@ export const fetchFilter = async (): Promise<Filter[]> => {
         throw new Error("Failed to fetch Filter.");
     }
 }
+
 
 export const uploadCSV = async (
     file: File,
