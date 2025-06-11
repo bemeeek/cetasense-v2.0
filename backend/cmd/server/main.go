@@ -58,12 +58,15 @@ func main() {
 	filterRepo := repositories.NewFilterRepository(db)
 	dataRepo := repositories.NewDataRepository(db)
 	csvRepo := repositories.NewCSVFileRepository(db)
+	methodRepo := repositories.NewMethodsRepository(db)
 
 	roomHandler := handlers.NewRoomHandler(*ruanganRepo)
 	filterHandler := handlers.NewFilterHandler(*filterRepo)
 	dataHandler := handlers.NewDataHandler(*dataRepo)
+
 	uploadHandler := handlers.NewUploadHandler(csvRepo, minioClient, cfg.MinioBucket, cfg, ruanganRepo, filterRepo)
 	batchHandler := handlers.NewBatchHandler(dataRepo)
+	methodHandler := handlers.NewMethodsHandler(methodRepo, minioClient, cfg.MinioBucket, cfg)
 
 	// 5. Setup router & middleware
 	router := mux.NewRouter()
@@ -73,6 +76,7 @@ func main() {
 	routes.RegisterDataRoutes(router, dataHandler)
 	routes.RegisterUploadRoutes(router, uploadHandler)
 	routes.RegisterBatchRoutes(router, batchHandler)
+	routes.RegisterMethodsRoutes(router, methodHandler)
 
 	router.Use(loggingMiddleware)
 	router.Use(contentTypeMiddleware)

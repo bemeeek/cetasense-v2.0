@@ -51,6 +51,15 @@ export interface CSIFileMeta {
     nama_filter: string;
 }
 
+export interface Methods {
+    method_id: string;
+    method_name: string;
+    filetype: string;
+    object_path: string;
+}
+
+
+
 export const fetchCSIFileMeta = async (): Promise<CSIFileMeta[]> => {
     try {
         const resp = await api.get<CSIFileMeta[]>('/uploads');
@@ -106,5 +115,45 @@ export const uploadCSV = async (
         },
     });
 }
+
+export const uploadMethod = async (
+    file: File,
+    method_name: string,
+    filetype: string
+): Promise<any> => {
+    const formData = new FormData();
+    formData.append('method_file', file);
+    formData.append('method_name', method_name);
+    formData.append('filetype', filetype);
+    return await api.post('/methods', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+}
+
+export const fetchMethods = async (): Promise<Methods[]> => {
+    try {
+        const response = await api.get<Methods[]>('/methods');
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching Methods:", error);
+        throw new Error("Failed to fetch Methods.");
+    }
+}
+
+export const deleteMethod = async (methodId: string): Promise<void> => {
+    try {
+        await api.delete(`/methods/${methodId}`);
+    } catch (error) {
+        console.error("Error deleting Method:", error);
+        throw new Error("Failed to delete Method.");
+    }
+}
+
+
+
+
+
 
 
