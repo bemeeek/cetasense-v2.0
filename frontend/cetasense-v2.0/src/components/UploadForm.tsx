@@ -13,26 +13,25 @@ const UploadForm: React.FC = () => {
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [uploads, setUploads] = useState<CSIFileMeta[]>([]);
 
- useEffect(() => {
-    (async () => {
-      try {
-        const [ruang, filt, prev] = await Promise.all([
-          fetchRuangan(),
-          fetchFilter(),
-          fetchCSIFileMeta(),
-        ]);
-        setRuanganList(ruang);
-        setFilterList(filt);
-        setUploads(prev);
+useEffect(() => {
+  (async () => {
+    try {
+      const [ruang, filt, prev] = await Promise.all([
+        fetchRuangan(),
+        fetchFilter(),
+        fetchCSIFileMeta(),
+      ]);
+      setRuanganList(ruang ?? []);
+      setFilterList  (filt  ?? []);
+      setUploads     (prev  ?? []);
 
-        if (ruang.length) setSelectedRuangan(ruang[0].nama_ruangan);
-        if (filt.length) setSelectedFilter(filt[0].nama_filter);
-      } catch (err) {
-        console.error(err);
-        setMessage('Failed to load data.');
-      }
-    })();
-  }, []);
+      if (ruang?.length) setSelectedRuangan(ruang[0].nama_ruangan);
+      if (filt?.length) setSelectedFilter(filt[0].nama_filter);
+    } catch {
+      setMessage('Failed to load data.');
+    }
+  })();
+}, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] || null;
@@ -76,9 +75,12 @@ return (
               disabled={isUploading}
               className="mt-1 block w-full border rounded p-2"
             >
-              {ruanganList.map(r => (
-                <option key={r.id} value={r.nama_ruangan}>{r.nama_ruangan}</option>
+              {ruanganList?.map(r => (
+                <option key={r.id} value={r.nama_ruangan}>
+                  {r.nama_ruangan}
+                </option>
               ))}
+
             </select>
           </div>
           <div>

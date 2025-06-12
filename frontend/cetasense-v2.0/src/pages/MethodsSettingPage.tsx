@@ -10,13 +10,30 @@ const MethodSettingPage: React.FC = () => {
         useEffect(() => {
   const load = async () => {
     try {
-        const data = await fetchMethods();
-        console.log("fetched methods:", data);   // harus terlihat array
-        setMethods(data);
-    } catch {
+      // misal fetchMethods() -> Promise<Methods[]> langsung
+      // atau -> Promise<{ methods: Methods[] }>
+      const response = await fetchMethods();
+      console.log("fetched methods:", response);
+
+      // kalau response adalah array langsung:
+      if (Array.isArray(response)) {
+        setMethods(response);
+      } 
+      // kalau response adalah axios Response<{ methods: Methods[] }>
+      else if (Array.isArray((response as any).data)) {
+        setMethods((response as any).data);
+      }
+      // kalau response adalah { methods: Methods[] }
+      else if (Array.isArray((response as any).methods)) {
+        setMethods((response as any).methods);
+      } else {
+        setMethods([]);
+      }
+    } catch (err) {
+      console.error(err);
       setMethods([]);
     }
-  }
+  };
   load();
 }, []);
 

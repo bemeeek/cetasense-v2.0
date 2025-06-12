@@ -20,7 +20,7 @@ const RoomSettingPage: React.FC = () => {
 
     const loadRooms = async () => {
         const response = await fetchRoom();
-        setRooms(response.data);
+        setRooms(response.data ?? []);
     }
 
     useEffect(() => {
