@@ -3,35 +3,30 @@ package repositories
 import (
 	"context"
 	"database/sql"
+
+	"cetasense-v2.0/internal/models"
 )
 
 type MethodsRepository struct {
 	db *sql.DB
 }
 
-type MethodsFile struct {
-	ID         string
-	NamaMetode string
-	TipeMetode string
-	ObjectPath string
-}
-
 func NewMethodsRepository(db *sql.DB) *MethodsRepository {
 	return &MethodsRepository{db: db}
 }
 
-func (r *MethodsRepository) Create(method *MethodsFile) error {
+func (r *MethodsRepository) Create(method *models.MethodsFile) error {
 	query := `
-	INSERT INTO methods_file (id, nama_metode, tipe_metode, object_path)
+	INSERT INTO metodelokalisasi (id, nama_metode, tipe_metode, path_file)
 	VALUES (?, ?, ?, ?)`
 	_, err := r.db.Exec(query, method.ID, method.NamaMetode, method.TipeMetode, method.ObjectPath)
 	return err
 }
 
-func (r *MethodsRepository) GetAll() ([]*MethodsFile, error) {
+func (r *MethodsRepository) GetAll() ([]*models.MethodsFile, error) {
 	query := `
-	SELECT id, nama_metode, tipe_metode, object_path
-	FROM methods_file
+	SELECT id, nama_metode, tipe_metode, path_file
+	FROM metodelokalisasi
 	ORDER BY nama_metode`
 	rows, err := r.db.Query(query)
 	if err != nil {
@@ -39,9 +34,9 @@ func (r *MethodsRepository) GetAll() ([]*MethodsFile, error) {
 	}
 	defer rows.Close()
 
-	var methods []*MethodsFile
+	var methods []*models.MethodsFile
 	for rows.Next() {
-		method := new(MethodsFile)
+		method := new(models.MethodsFile)
 		if err := rows.Scan(&method.ID, &method.NamaMetode, &method.TipeMetode, &method.ObjectPath); err != nil {
 			return nil, err
 		}
@@ -52,7 +47,7 @@ func (r *MethodsRepository) GetAll() ([]*MethodsFile, error) {
 
 func (r *MethodsRepository) Delete(ctx context.Context, id string) error {
 	stmt, err := r.db.PrepareContext(ctx, `
-		DELETE FROM methods_file 
+		DELETE FROM metodelokalisasi
 		WHERE id = ?`)
 	if err != nil {
 		return err
@@ -63,13 +58,13 @@ func (r *MethodsRepository) Delete(ctx context.Context, id string) error {
 	return err
 }
 
-func (r *MethodsRepository) GetByID(ctx context.Context, id string) (*MethodsFile, error) {
+func (r *MethodsRepository) GetByID(ctx context.Context, id string) (*models.MethodsFile, error) {
 	row := r.db.QueryRowContext(ctx, `
-		SELECT id, nama_metode, tipe_metode, object_path 
-		FROM methods_file 
+		SELECT id, nama_metode, tipe_metode, path_file
+		FROM metodelokalisasi 
 		WHERE id = ?`, id)
 
-	method := new(MethodsFile)
+	method := new(models.MethodsFile)
 	err := row.Scan(&method.ID, &method.NamaMetode, &method.TipeMetode, &method.ObjectPath)
 	if err != nil {
 		return nil, err

@@ -95,7 +95,7 @@ func (h *UploadHandler) HandleUpload(w http.ResponseWriter, r *http.Request) {
 	// Generate unique ID and object path
 	fileID := uuid.New().String()
 	namaFile := header.Filename
-	objectPath := fmt.Sprintf("Data-Parameter/%s.csv", namaFile)
+	objectPath := fmt.Sprintf("Data-Parameter/%s", namaFile)
 
 	// Upload to MinIO
 	info, err := h.minioClient.PutObject(ctx, h.bucketName, objectPath,

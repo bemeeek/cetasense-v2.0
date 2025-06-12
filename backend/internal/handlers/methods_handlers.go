@@ -8,8 +8,10 @@ import (
 	"strings"
 
 	"cetasense-v2.0/config"
+	"cetasense-v2.0/internal/models"
 	"cetasense-v2.0/internal/repositories"
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"github.com/minio/minio-go/v7"
 )
 
@@ -67,20 +69,28 @@ func (h *MethodsHandler) UploadMethods(w http.ResponseWriter, r *http.Request) {
 	MethodPath := fmt.Sprintf("Metodhs/%s", MethodName)
 
 	// Upload the file to MinIO
-	if _, err := h.minio.PutObject(ctx, h.bucketName, MethodID+ext, file, header.Size, minio.PutObjectOptions{ContentType: "application/octet-stream"}); err != nil {
+	// if _, err := h.minio.PutObject(ctx, h.bucketName, MethodID+ext, file, header.Size, minio.PutObjectOptions{ContentType: "application/octet-stream"}); err != nil {
+	// 	log.Printf("MinIO upload error: %v", err)
+	// 	respondError(w, http.StatusInternalServerError, "Failed to upload file: "+err.Error())
+	// 	return
+	// }
+
+	info, err := h.minio.PutObject(ctx, h.bucketName, MethodPath,
+		file, header.Size, minio.PutObjectOptions{ContentType: "application/octet-stream"})
+	if err != nil {
 		log.Printf("MinIO upload error: %v", err)
 		respondError(w, http.StatusInternalServerError, "Failed to upload file: "+err.Error())
 		return
 	}
-	log.Printf("File uploaded successfully: %s", MethodPath)
-
+	log.Printf("File uploaded to MinIO: %s (%d bytes)", MethodPath, info.Size)
 	// Save metadata to the database
-	method := &repositories.MethodsFile{
+	method := &models.MethodsFile{
 		ID:         MethodID,
 		NamaMetode: MethodName,
 		TipeMetode: filetype,
 		ObjectPath: MethodPath,
 	}
+
 	if err := h.repo.Create(method); err != nil {
 		log.Printf("Database insert error: %v", err)
 		respondError(w, http.StatusInternalServerError, "Failed to save metadata: "+err.Error())
@@ -88,9 +98,6 @@ func (h *MethodsHandler) UploadMethods(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Metadata saved successfully: %s", MethodName)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `{"message": "File uploaded and metadata saved successfully", "filetype": "%s"}`, filetype)
 	log.Println("Upload process completed successfully")
 
 	// Respond with success
@@ -120,7 +127,8 @@ func (h *MethodsHandler) ListMethods(w http.ResponseWriter, r *http.Request) {
 
 func (h *MethodsHandler) GetMethodByID(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	methodID := r.URL.Query().Get("id")
+	methodID := mux.Vars(r)["id"]
+	// Validate method ID
 	if methodID == "" {
 		respondError(w, http.StatusBadRequest, "Method ID is required")
 		return
@@ -140,19 +148,38 @@ func (h *MethodsHandler) GetMethodByID(w http.ResponseWriter, r *http.Request) {
 
 func (h *MethodsHandler) DeleteMethod(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	methodID := r.URL.Query().Get("id")
+	vars := mux.Vars(r)
+	methodID := vars["id"]
 	if methodID == "" {
 		respondError(w, http.StatusBadRequest, "Method ID is required")
 		return
 	}
 
-	// Delete the method from the repository
-	if err := h.repo.Delete(ctx, methodID); err != nil {
-		log.Printf("Delete error: %v", err)
-		respondError(w, http.StatusInternalServerError, "Failed to delete method: "+err.Error())
+	// 1. (Opsional) ambil metadata dulu, agar tahu nama object di MinIO
+	method, err := h.repo.GetByID(ctx, methodID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to retrieve method: "+err.Error())
+		return
+	}
+	// misal kamu menyimpan ObjectPath = "Metodhs/namafile.ext"
+	objectName := methodID + filepath.Ext(method.ObjectPath)
+
+	// atau kalau kamu menyimpan objectName langsung di DB, tinggal pakai method.ObjectPath
+
+	// 2. Hapus object di MinIO
+	if err := h.minio.RemoveObject(ctx, h.bucketName, objectName, minio.RemoveObjectOptions{}); err != nil {
+		log.Printf("MinIO delete error: %v", err)
+		// kamu bisa pilih: lanjut hapus DB juga, atau rollback, sesuai kebijakan
+		respondError(w, http.StatusInternalServerError, "Failed to delete object from storage: "+err.Error())
 		return
 	}
 
-	// Respond with success
-	respondJSON(w, http.StatusOK, map[string]string{"message": "Method deleted successfully"})
+	// 3. Hapus metadata di database
+	if err := h.repo.Delete(ctx, methodID); err != nil {
+		log.Printf("Database delete error: %v", err)
+		respondError(w, http.StatusInternalServerError, "Failed to delete metadata: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{"message": "Method and storage object deleted successfully"})
 }

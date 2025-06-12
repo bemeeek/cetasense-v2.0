@@ -54,10 +54,9 @@ export interface CSIFileMeta {
 export interface Methods {
     method_id: string;
     method_name: string;
-    filetype: string;
+    filetype: 'script' | 'model';
     object_path: string;
 }
-
 
 
 export const fetchCSIFileMeta = async (): Promise<CSIFileMeta[]> => {
@@ -99,7 +98,6 @@ export const fetchFilter = async (): Promise<Filter[]> => {
     }
 }
 
-
 export const uploadCSV = async (
     file: File,
     nama_ruangan: string,
@@ -118,33 +116,29 @@ export const uploadCSV = async (
 
 export const uploadMethod = async (
     file: File,
-    method_name: string,
-    filetype: string
+    nama_metode : string,
+    tipe_metode : 'script' | 'model'
 ): Promise<any> => {
     const formData = new FormData();
-    formData.append('method_file', file);
-    formData.append('method_name', method_name);
-    formData.append('filetype', filetype);
-    return await api.post('/methods', formData, {
+    formData.append('file', file);
+    formData.append('nama_metode', nama_metode);
+    formData.append('tipe_metode', tipe_metode);
+    const resp = await api.post('/methods', formData, {
         headers: {
             'Content-Type': 'multipart/form-data',
         },
     });
+    return resp.data;
 }
 
 export const fetchMethods = async (): Promise<Methods[]> => {
-    try {
-        const response = await api.get<Methods[]>('/methods');
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching Methods:", error);
-        throw new Error("Failed to fetch Methods.");
-    }
+  const response = await api.get<Methods[]>('/methods');
+  return response.data;
 }
 
-export const deleteMethod = async (methodId: string): Promise<void> => {
+export const deleteMethod = async (method_id: string): Promise<void> => {
     try {
-        await api.delete(`/methods/${methodId}`);
+        await api.delete(`/methods/${method_id}`);
     } catch (error) {
         console.error("Error deleting Method:", error);
         throw new Error("Failed to delete Method.");
