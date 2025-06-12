@@ -67,6 +67,7 @@ func main() {
 	uploadHandler := handlers.NewUploadHandler(csvRepo, minioClient, cfg.MinioBucket, cfg, ruanganRepo, filterRepo)
 	batchHandler := handlers.NewBatchHandler(dataRepo)
 	methodHandler := handlers.NewMethodsHandler(methodRepo, minioClient, cfg.MinioBucket, cfg)
+	heatmapHandler := handlers.NewHeatmapHandler(csvRepo, minioClient, cfg.MinioBucket, cfg)
 
 	// 5. Setup router & middleware
 	router := mux.NewRouter()
@@ -77,6 +78,7 @@ func main() {
 	routes.RegisterUploadRoutes(router, uploadHandler)
 	routes.RegisterBatchRoutes(router, batchHandler)
 	routes.RegisterMethodsRoutes(router, methodHandler)
+	routes.RegisterHeatmapRoutes(router, heatmapHandler)
 
 	router.Use(loggingMiddleware)
 	router.Use(contentTypeMiddleware)

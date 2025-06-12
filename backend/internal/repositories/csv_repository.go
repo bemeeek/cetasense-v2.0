@@ -5,10 +5,15 @@ import (
 	"database/sql"
 
 	"cetasense-v2.0/internal/models"
+	minio "github.com/minio/minio-go/v7"
 )
 
 type CSVFileRepository struct {
 	db *sql.DB
+}
+
+func (r *CSVFileRepository) ParseCSVFile(obj *minio.Object) (any, error) {
+	panic("unimplemented")
 }
 
 func NewCSVFileRepository(db *sql.DB) *CSVFileRepository {
