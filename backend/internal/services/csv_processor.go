@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-func PareseCSVFile(r io.Reader) ([][]float64, error) {
+func ParseCSVFile(r io.Reader) ([][]float64, error) {
 	reader := csv.NewReader(r)
 	var matrix [][]float64
 

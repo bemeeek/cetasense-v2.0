@@ -7,14 +7,14 @@ import (
 	"strconv"
 )
 
-var ThetaScan, TauScan [][]float64
+var ThetaScan, TauScan []float64
 
 func init() {
 	ThetaScan = loadIndexCSV("theta_scan.csv")
 	TauScan = loadIndexCSV("tau_scan.csv")
 }
 
-func loadIndexCSV(path string) [][]float64 {
+func loadIndexCSV(path string) []float64 {
 	f, err := os.Open(path)
 	if err != nil {
 		log.Fatalf("Failed to open index CSV file %s: %v", path, err)
@@ -27,13 +27,13 @@ func loadIndexCSV(path string) [][]float64 {
 		log.Fatalf("Failed to read index CSV file %s: %v", path, err)
 	}
 
-	matrix := make([][]float64, len(record))
+	matrix := make([]float64, len(record))
 	for i, value := range record {
 		num, err := strconv.ParseFloat(value, 64)
 		if err != nil {
 			log.Fatalf("Failed to parse float from index CSV file %s: %v", path, err)
 		}
-		matrix[i] = []float64{num}
+		matrix[i] = num
 	}
 	return matrix
 }

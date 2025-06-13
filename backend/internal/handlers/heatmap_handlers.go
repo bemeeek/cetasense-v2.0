@@ -5,6 +5,7 @@ import (
 
 	"cetasense-v2.0/config"
 	"cetasense-v2.0/internal/repositories"
+	"cetasense-v2.0/internal/services"
 	"github.com/gorilla/mux"
 	"github.com/minio/minio-go/v7"
 )
@@ -47,7 +48,7 @@ func (h *HeatmapHandler) GetHeatmap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer obj.Close()
-	matrix, err := h.csvRepo.ParseCSVFile(obj)
+	matrix, err := services.ParseCSVFile(obj)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to parse CSV file: "+err.Error())
 		return
