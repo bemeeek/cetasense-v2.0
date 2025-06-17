@@ -30,6 +30,42 @@ services:
     networks:
       - app-network
 
+  redis:
+    image: redis:6-alpine
+    container_name: redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbit
+      RABBITMQ_DEFAULT_PASS: secret123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Management UI
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -62,4 +98,8 @@ volumes:
   mariadb_data:
     driver: local
   minio_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
     driver: local
