@@ -1,0 +1,7 @@
+{
+    "python.analysis.extraPaths": [
+        "./backend-localization-py/app/setup_",
+        "./backend-localization-py/app/setup_",
+        "./backend-localization-py/app/setup_"
+    ]
+}

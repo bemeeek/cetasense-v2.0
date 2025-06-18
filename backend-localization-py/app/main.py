@@ -4,6 +4,9 @@ import uuid
 from .db import get_connection
 from .models import LocalizeRequest, create_lokalisasi_table
 from .tasks import localize_task
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
 app.add_middleware(
@@ -43,7 +46,7 @@ def get_status(job_id: str):
     try:
         with conn.cursor() as cursor:
             cursor.execute(
-                "SELECT status, hasil_x, hasil_y FROM lokalisasi_jobs WHERE id=%s",
+                "SELECT status, hasil_x, hasil_y FROM hasil_lokalisasi WHERE id=%s",
                 (job_id,)
             )
             row = cursor.fetchone()

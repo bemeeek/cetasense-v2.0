@@ -1,13 +1,13 @@
 from celery import Celery
 import os
 
-BROKER = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
+BROKER = os.getenv("CELERY_BROKER_URL")
 BACKEND = os.getenv("CELERY_RESULT_BACKEND", BROKER)
 
 celery = Celery(
-    "localizaer",
-    broker=BROKER,
-    backend=BACKEND,
+    "localizer",
+    broker=os.getenv("CELERY_BROKER_URL", BROKER),
+    backend=os.getenv("CELERY_RESULT_BACKEND", BACKEND),
 )
 
 celery.conf.update(
