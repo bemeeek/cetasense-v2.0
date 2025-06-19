@@ -3,11 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import uuid
 import os
-
+import threading
 from .db import get_connection
 from .models import LocalizeRequest, create_lokalisasi_table
 from .tasks import localize_task
 from .setup_redis import redis_client
+from .rabbit_consumer import main as consume_rabbit
 from datetime import datetime
 
 load_dotenv()
@@ -21,28 +22,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def startup_event():
+    thread = threading.Thread(target=consume_rabbit)
+    thread.start()
+
 # Ensure table exists on startup
 def on_startup():
     create_lokalisasi_table()
 
 app.add_event_handler("startup", on_startup)
 
-@app.post("/localize", status_code=202)
-def enqueue(req: LocalizeRequest):
-    job_id = uuid.uuid4().hex
-    conn = get_connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                "INSERT INTO lokalisasi_jobs (id, id_data, id_ruangan, id_metode, status, created_at, updated_at)"
-                " VALUES (%s,%s,%s,%s,'queued',%s,%s)",
-                (job_id, req.id_data, req.id_ruangan, req.id_metode, datetime.now(), datetime.now())
-            )
-            conn.commit()
-        localize_task.apply_async(args=[job_id], task_id=job_id) # type: ignore
-        return {"job_id": job_id, "status": "queued"}
-    finally:
-        conn.close()
+# @app.post("/localize", status_code=202)
+# def enqueue(req: LocalizeRequest):
+#     job_id = uuid.uuid4().hex
+#     conn = get_connection()
+#     try:
+#         with conn.cursor() as cursor:
+#             cursor.execute(
+#                 "INSERT INTO lokalisasi_jobs (id, id_data, id_ruangan, id_metode, status, created_at, updated_at)"
+#                 " VALUES (%s,%s,%s,%s,'queued',%s,%s)",
+#                 (job_id, req.id_data, req.id_ruangan, req.id_metode, datetime.now(), datetime.now())
+#             )
+#             conn.commit()
+#         localize_task.apply_async(args=[job_id], task_id=job_id) # type: ignore
+#         return {"job_id": job_id, "status": "queued"}
+#     finally:
+#         conn.close()
 
 @app.get("/status/{job_id}")
 def get_status(job_id: str):

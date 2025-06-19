@@ -10,6 +10,7 @@ import logging
 from dotenv import load_dotenv
 import os
 from python.localize import run_localization
+import pymysql.cursors
 # ________________________________________
 # Test endpoint variables
 # ________________________________________
