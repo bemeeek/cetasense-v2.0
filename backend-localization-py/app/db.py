@@ -1,5 +1,6 @@
 import os
 import pymysql
+import pymysql.cursors
 from datetime import datetime
 
 # Read DB URL components from environment or use defaults
@@ -18,5 +19,6 @@ def get_connection():
         password=DB_PASS,
         database=DB_NAME,
         charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor, # type: ignore
         autocommit=False
     )
