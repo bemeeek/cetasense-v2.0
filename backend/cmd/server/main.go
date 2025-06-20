@@ -17,6 +17,7 @@ import (
 	"cetasense-v2.0/internal/repositories"
 	"cetasense-v2.0/internal/routes"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"github.com/minio/minio-go/v7"
@@ -54,7 +55,24 @@ func main() {
 		}
 	}
 
-	// ─── 4) Repositories & Handlers ───────────────────────────────────────
+	// ─── 4) Initialize Redis ──────────────────────────────────────────────
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     fmt.Sprintf("%s:%s", cfg.RedisHost, cfg.RedisPort),
+		Password: "",          // No password set
+		DB:       cfg.RedisDB, // Use default DB
+	})
+	if err := rdb.Ping(ctx).Err(); err != nil {
+		log.Fatalf("Failed to connect to Redis: %v", err)
+	}
+	// Ensure Redis connection is closed on exit
+	defer func() {
+		if err := rdb.Close(); err != nil {
+			log.Printf("Error closing Redis connection: %v", err)
+		}
+		defer rdb.Close()
+	}()
+
+	// ─── 5) Repositories & Handlers ───────────────────────────────────────
 	ruanganRepo := repositories.NewRuanganRepository(db)
 	filterRepo := repositories.NewFilterRepository(db)
 	dataRepo := repositories.NewDataRepository(db)
@@ -70,7 +88,7 @@ func main() {
 	methodHandler := handlers.NewMethodsHandler(methodRepo, minioClient, cfg.MinioBucket, cfg)
 	heatmapHandler := handlers.NewHeatmapHandler(csvRepo, minioClient, cfg.MinioBucket, cfg)
 
-	// ─── 5) Router & Middleware ──────────────────────────────────────────
+	// ─── 6) Router & Middleware ──────────────────────────────────────────
 	router := mux.NewRouter()
 
 	// Application routes
@@ -81,17 +99,18 @@ func main() {
 	routes.RegisterBatchRoutes(router, batchHandler)
 	routes.RegisterMethodsRoutes(router, methodHandler)
 	routes.RegisterHeatmapRoutes(router, heatmapHandler)
+	// SSE routes
+	router.HandleFunc("/api/localize", handlers.NewLocalizeHandler(cfg)).
+		Methods("POST")
+	router.HandleFunc("/api/localize/stream/{job_id}", handlers.LocalizationHandler(rdb)).Methods("GET")
 
 	// Gateway route
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/localize", handlers.NewLocalizeHandler(cfg))
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "OK")
 	})
 	addr := ":8081"
 	log.Printf("Gateway listening on %s", addr)
-	log.Fatal(http.ListenAndServe(addr, mux))
 
 	// Global middleware
 	router.Use(loggingMiddleware, contentTypeMiddleware)
@@ -105,7 +124,7 @@ func main() {
 	})
 	handler := c.Handler(router)
 
-	// ─── 6) HTTP Server & Graceful Shutdown ──────────────────────────────
+	// ─── 7) HTTP Server & Graceful Shutdown ──────────────────────────────
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", os.Getenv("PORT")),
 		Handler:      handler,

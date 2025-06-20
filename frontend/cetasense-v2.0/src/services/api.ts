@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const api = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api',
+    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api',
     headers: {
         'Content-Type': 'application/json',
     },
@@ -56,6 +56,17 @@ export interface Methods {
     method_name: string;
     filetype: 'script' | 'model';
     object_path: string;
+}
+
+export interface LocalizatioResponse {
+    job_id: string;
+    status : 'queued' | 'running' | 'done';
+}
+
+export interface StatusResponse {
+    status: 'queued' | 'running' | 'done' | 'failed';
+    hasil_x?: number;
+    hasil_y?: number;
 }
 
 
@@ -145,9 +156,31 @@ export const deleteMethod = async (method_id: string): Promise<void> => {
     }
 }
 
+export const localize = async (
+    data_id : string,
+    method_id : string,
+    ruangan_id : string,
+) : Promise<LocalizatioResponse> => {
+    const resp = await api.post<LocalizatioResponse>('/localize', {
+        id_data: data_id,
+        id_metode: method_id,
+        id_ruangan: ruangan_id,
+    });
+    return resp.data;
+}
 
 
+export const listenLocalizationResult = (
+  job_id: string,
+  onMessage: (data: StatusResponse) => void
+): EventSource => {
+  // PASTIKAN URL ini mengarah ke backend Go, bukan ke port Vite (5173)
+  const es = new EventSource(`http://localhost:8081/api/localize/stream/${job_id}`);
+  es.onmessage = e => onMessage(JSON.parse(e.data));
+  return es;
+};
 
-
-
-
+export const getStatus = async (job_id: string): Promise<StatusResponse> => {
+    const resp = await api.get<StatusResponse>(`/localize/${job_id}/status`);
+    return resp.data;
+}

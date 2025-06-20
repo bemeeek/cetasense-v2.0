@@ -26,6 +26,10 @@ type Config struct {
 	RabbitMQUser      string
 	RabbitMQPassword  string
 	RabbitMQQueueName string
+
+	RedisHost string
+	RedisPort string
+	RedisDB   int
 }
 
 func LoadConfig() *Config {
@@ -41,6 +45,7 @@ func LoadConfig() *Config {
 		"DB_USER", "DB_PASSWORD", "DB_HOST", "DB_PORT", "DB_NAME",
 		"MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD", "MINIO_BUCKET_NAME", "MINIO_ENDPOINT", "MINIO_SECURE",
 		"RABBITMQ_HOST", "RABBITMQ_PORT", "RABBITMQ_VHOST", "RABBITMQ_DEFAULT_USER", "RABBITMQ_DEFAULT_PASS", "RABBITMQ_QUEUE_NAME",
+		"REDIS_HOST", "REDIS_PORT", "REDIS_DB",
 	}
 	for _, envVar := range required {
 		if os.Getenv(envVar) == "" {
@@ -67,5 +72,9 @@ func LoadConfig() *Config {
 		RabbitMQUser:      os.Getenv("RABBITMQ_DEFAULT_USER"),
 		RabbitMQPassword:  os.Getenv("RABBITMQ_DEFAULT_PASS"),
 		RabbitMQQueueName: "lok_requests",
+
+		RedisHost: os.Getenv("REDIS_HOST"),
+		RedisPort: os.Getenv("REDIS_PORT"),
+		RedisDB:   0, // Default Redis DB
 	}
 }

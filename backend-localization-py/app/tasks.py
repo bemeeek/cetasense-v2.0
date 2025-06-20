@@ -45,7 +45,7 @@ def cache_status(job_id: str, status: str, x: float = None, y: float = None): # 
     key = f"lok_status:{job_id}"
     payload = {
         "status":status,
-        "updated_at": datetime.now(timezone.utc).isoformat()  # Store the timestamp in ISO format
+        "updated_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")  # Store the timestamp in ISO format
     }
     if x is not None and y is not None:
         payload.update({"hasil_x": x, "hasil_y": y})  # type: ignore
@@ -76,7 +76,7 @@ def notify_pubsub(job_id: str, status: str, x: float = None, y: float = None): #
     msg = {
         "job_id": job_id,
         "status": status,
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     }
     if x is not None and y is not None:
         msg.update({"hasil_x": x, "hasil_y": y}) # type: ignore
@@ -141,7 +141,7 @@ def localize_task(self, job_id: str):
 
         logger.info("Job %s: downloaded %dB CSV, %dB model", job_id, len(csv_bytes), len(model_bytes))
 
-        time.sleep(1 + random.random() * 2)   # delay 1–3 detik
+        time.sleep(20 + random.random() * 20)   # delay 20–40 detik
         x = round(random.uniform(0, 10), 3)
         y = round(random.uniform(0, 10), 3)
         logger.info("Job %s: simulated result x=%s, y=%s", job_id, x, y)

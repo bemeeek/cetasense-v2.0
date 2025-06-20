@@ -31,8 +31,8 @@ def main():
     
     def callback(ch, method, properties, body):
         req = json.loads(body)
-        job_id, id_data, id_metode, id_ruangan = req.get("job_id"), req.get("id_data"), req.get("id_metode"), req.get("id_ruangan")
-        print(f"Received job_id={job_id}, id_data={id_data}, id_metode={id_metode}, id_ruangan={id_ruangan}")
+        job_id, id_data, id_metode, id_ruangan, created_at = req.get("job_id"), req.get("id_data"), req.get("id_metode"), req.get("id_ruangan"), datetime.now()
+        print(f"Received job_id={job_id}, id_data={id_data}, id_metode={id_metode}, id_ruangan={id_ruangan}, created_at={created_at}")
         if not job_id:
             print("Received message without job_id, skipping")
             ch.basic_ack(delivery_tag=method.delivery_tag)

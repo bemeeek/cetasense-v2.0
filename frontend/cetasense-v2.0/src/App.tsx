@@ -4,6 +4,7 @@ import DataSettingPage from "./pages/DataSettingPage";
 import RoomPage from "./pages/RoomSettingPage";
 import MethodSettingPage from "./pages/MethodsSettingPage";
 import HeatMapPage from "./pages/HeatMapPage";
+import LocalizationPage from "./pages/LocalizationPage";
 // import UploadPage from "./pages/MethodsSettingPage";
 
 function App() {
@@ -12,9 +13,10 @@ function App() {
             <Routes>
                 {/* <Route path="/" element={<HomePage />} /> */}
                 <Route path="/data-setting" element={<DataSettingPage />} />
-                <Route path="/room" element={<RoomPage />} />
+                <Route path="/room-setting" element={<RoomPage />} />
                 <Route path="/upload-method" element={<MethodSettingPage />} />
                 <Route path="/plot-heatmap" element={<HeatMapPage />} />
+                <Route path="/localization" element={<LocalizationPage />} />
             </Routes>
         </Router>
     );
