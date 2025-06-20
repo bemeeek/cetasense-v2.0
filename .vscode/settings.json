@@ -3,5 +3,6 @@
         "./backend-localization-py/app/setup_",
         "./backend-localization-py/app/setup_",
         "./backend-localization-py/app/setup_"
-    ]
+    ],
+    "postman.settings.dotenv-detection-notification-visibility": false
 }

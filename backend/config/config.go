@@ -19,6 +19,13 @@ type Config struct {
 	MinioBucket   string
 	MinioEndpoint string
 	MinioSecure   bool
+
+	RabbitMQHost      string
+	RabbitMQPort      string
+	RabbitMQVHost     string
+	RabbitMQUser      string
+	RabbitMQPassword  string
+	RabbitMQQueueName string
 }
 
 func LoadConfig() *Config {
@@ -33,6 +40,7 @@ func LoadConfig() *Config {
 	required := []string{
 		"DB_USER", "DB_PASSWORD", "DB_HOST", "DB_PORT", "DB_NAME",
 		"MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD", "MINIO_BUCKET_NAME", "MINIO_ENDPOINT", "MINIO_SECURE",
+		"RABBITMQ_HOST", "RABBITMQ_PORT", "RABBITMQ_VHOST", "RABBITMQ_DEFAULT_USER", "RABBITMQ_DEFAULT_PASS", "RABBITMQ_QUEUE_NAME",
 	}
 	for _, envVar := range required {
 		if os.Getenv(envVar) == "" {
@@ -51,6 +59,13 @@ func LoadConfig() *Config {
 		MinioPass:     os.Getenv("MINIO_ROOT_PASSWORD"),
 		MinioBucket:   os.Getenv("MINIO_BUCKET_NAME"),
 		MinioEndpoint: os.Getenv("MINIO_ENDPOINT"),
-		MinioSecure:   os.Getenv("MINIO_SECURE") == "true", // Konversi string ke boolean
+		MinioSecure:   os.Getenv("MINIO_SECURE") == "true", // Konversi string ke bool
+
+		RabbitMQHost:      os.Getenv("RABBITMQ_HOST"),
+		RabbitMQPort:      os.Getenv("RABBITMQ_PORT"),
+		RabbitMQVHost:     os.Getenv("RABBITMQ_VHOST"),
+		RabbitMQUser:      os.Getenv("RABBITMQ_DEFAULT_USER"),
+		RabbitMQPassword:  os.Getenv("RABBITMQ_DEFAULT_PASS"),
+		RabbitMQQueueName: "lok_requests",
 	}
 }
