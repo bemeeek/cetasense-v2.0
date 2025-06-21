@@ -34,9 +34,17 @@ type Config struct {
 
 func LoadConfig() *Config {
 	// Tentukan lokasi file .env yang baru di folder tools
-	if os.Getenv("APP_ENV") != "production" {
-		if err := godotenv.Load("../../.env"); err != nil {
+	// if os.Getenv("APP_ENV") != "production" {
+	// 	if err := godotenv.Load("../../.env"); err != nil {
+	// 		log.Fatalf("Error loading .env file: %v", err) // Ganti log.Printf menjadi log.Fatalf agar error terlihat jelas
+	// 	}
+	// }
+
+	if os.Getenv("APP_ENV") != "development" {
+		if err := godotenv.Load(""); err != nil {
 			log.Fatalf("Error loading .env file: %v", err) // Ganti log.Printf menjadi log.Fatalf agar error terlihat jelas
+		} else {
+			log.Println("Loaded environment variables from .env file")
 		}
 	}
 

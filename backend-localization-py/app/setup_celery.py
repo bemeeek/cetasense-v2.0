@@ -21,5 +21,6 @@ celery.conf.update(
     task_acks_late=True,
     broker_connection_retry_on_startup=True,
     broker_connection_max_retries=3,
+    task_concurrency=4
 )
 

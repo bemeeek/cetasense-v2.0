@@ -1,24 +1,25 @@
-# Gunakan image Golang sebagai base image
-FROM golang:1.24
+# ===== STAGE 1: Build =====
+FROM golang:1.24-alpine3.20 AS builder
+RUN apk add --no-cache git ca-certificates \
+    && update-ca-certificates
 
-# Tentukan direktori kerja di dalam kontainer
 WORKDIR /app
-
-# Salin file Go mod dan sum untuk menginstall dependensi
-COPY .env ./
 COPY go.mod go.sum ./
-
-# Install dependensi Go
-RUN go mod tidy
-
-# Salin seluruh kode sumber aplikasi
+RUN go mod download
 COPY . .
+ENV CGO_ENABLED=0
+RUN go build -o gateway ./cmd/server/main.go
 
-# Build aplikasi Golang
-RUN go build -o main ./cmd/server/main.go
+# ===== STAGE 2: Runtime =====
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates \
+    && update-ca-certificates
+WORKDIR /root/
+COPY --from=builder /app/gateway ./
+COPY --from=builder /app/cmd/server/theta_scan.csv .
+COPY --from=builder /app/cmd/server/tau_scan.csv .
 
-# Tentukan port yang akan digunakan oleh aplikasi
-EXPOSE 8080
+# expose port yang benar
+EXPOSE 8081
 
-# Jalankan aplikasi
-CMD ["./main"]
+ENTRYPOINT ["./gateway"]

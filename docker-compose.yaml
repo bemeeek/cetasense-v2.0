@@ -1,5 +1,18 @@
 services:
 
+  nginx:
+    image: nginx:stable-alpine
+    container_name: lb_nginx
+    ports:
+      - "80:80"             # expose port 80 ke host
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - go_gateway
+      - py_api
+    networks:
+      - app-network
+
   mariadb:
     image: mariadb:latest
     container_name: mariadb
@@ -66,28 +79,74 @@ services:
       timeout: 5s
       retries: 5
 
-
-  backend:
+  go_gateway:
     build:
       context: ./backend
-    container_name: backend
-    restart: on-failure               # atau gunakan `unless-stopped` sesuai kebutuhan
+    container_name: go_gateway
+    restart: on-failure
     environment:
-      DB_USER: root
-      DB_PASSWORD: Rafi111703
-      DB_NAME: bismillahta
-      DB_HOST: mariadb
-      DB_PORT: 3306
-      MINIO_ROOT_USER: admin
-      MINIO_ROOT_PASSWORD: password
-      MINIO_BUCKET_NAME: bismillahta
-      MINIO_ENDPOINT: http://minio:9000
-      MINIO_SECURE: "false"
+      - APP_ENV=development
+      - PORT=8081
+    env_file:
+      - ./.env
     ports:
-      - "8080:8080"
+      - "8081:8081"
     depends_on:
       - mariadb
       - minio
+      - redis
+      - rabbitmq
+    networks:
+      - app-network
+  
+  py_api:
+    build:
+      context: ./backend-localization-py
+      dockerfile: dockerfile
+    container_name: py_api
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    ports:
+      - "8001:8000"
+    depends_on:
+      - go_gateway
+      - mariadb
+      - minio
+      - redis
+      - rabbitmq
+    networks:
+      - app-network
+  
+  rabbit_consumer:
+    build:
+      context: ./backend-localization-py
+    container_name: rabbit_consumer
+    restart: unless-stopped
+    command: python -m app.rabbit_consumer
+    env_file:
+      - ./.env
+    depends_on:
+      - rabbitmq
+      - redis
+      - mariadb
+    networks:
+      - app-network
+  
+  celery_worker:
+    build:
+      context: ./backend-localization-py
+    container_name: celery_worker
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    depends_on:
+      - rabbitmq
+      - redis
+      - mariadb
+      - minio
+    command: celery -A app.tasks worker --loglevel=info --pool=prefork --concurrency=4
     networks:
       - app-network
 
@@ -104,3 +163,6 @@ volumes:
     driver: local
   rabbitmq_data:
     driver: local
+  nginx_data:
+    driver: local
+  

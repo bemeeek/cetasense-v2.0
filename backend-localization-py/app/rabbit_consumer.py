@@ -5,14 +5,14 @@ from .tasks import localize_task
 from datetime import datetime
 
 
-RABBIT_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/%2F")
-QUEUE_NAME = os.getenv("RABBITMQ_QUEUE", "lok_requests")
+# RABBIT_URL = os.getenv("amqp://guest:guest@localhost:5672//")
+QUEUE_NAME = os.getenv("RABBITMQ_QUEUE_NAME")
 
 def main():
-    host = os.getenv("RABBITMQ_HOST", "localhost")
+    host = os.getenv("RABBITMQ_HOST", "rabbitmq")
     port = int(os.getenv("RABBITMQ_PORT", 5672))
-    username = os.getenv("RABBITMQ_USER", "rabbit")
-    password = os.getenv("RABBITMQ_PASSWORD", "secret123")
+    username = os.getenv("RABBITMQ_DEFAULT_USER", "rabbit")
+    password = os.getenv("RABBITMQ_DEFAULT_PASS", "secret123")
 
     credentials = pika.PlainCredentials(username, password)
     params = pika.ConnectionParameters(
@@ -38,14 +38,17 @@ def main():
             ch.basic_ack(delivery_tag=method.delivery_tag)
             return
         db = get_connection()
-        with db.cursor() as cursor:
-            cursor.execute(
-                "INSERT INTO lokalisasi_jobs (id, id_data, id_metode, id_ruangan, status, created_at, updated_at)"
-                " VALUES (%s,%s,%s,%s,'queued',%s,%s)",
-                (job_id, id_data, id_metode, id_ruangan, datetime.now(), datetime.now())
-            )
-            db.commit()
+        try:
+            with db.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO lokalisasi_jobs (id, id_data, id_metode, id_ruangan, status, created_at, updated_at)"
+                    " VALUES (%s,%s,%s,%s,'queued',%s,%s)",
+                    (job_id, id_data, id_metode, id_ruangan, datetime.now(), datetime.now())
+                )
+                db.commit()
+        finally:
             db.close()
+        
 
         localize_task.apply_async(args=[job_id], task_id=job_id)  # type: ignore
         ch.basic_ack(delivery_tag=method.delivery_tag)

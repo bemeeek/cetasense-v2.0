@@ -19,17 +19,16 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
-	"github.com/joho/godotenv"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/rs/cors"
 )
 
-func init() {
-	if err := godotenv.Load("../../.env"); err != nil {
-		log.Println("No .env file found, relying on environment variables")
-	}
-}
+// func init() {
+// 	if err := godotenv.Load("../../.env"); err != nil {
+// 		log.Println("No .env file found, relying on environment variables")
+// 	}
+// }
 
 func main() {
 	// ─── 1) Load config ────────────────────────────────────────────────────
