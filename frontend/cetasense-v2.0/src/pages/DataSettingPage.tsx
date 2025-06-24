@@ -1,41 +1,60 @@
-import React from 'react';
+// src/pages/DataSettingPage.tsx
+import React, { useEffect, useState } from 'react';
+import Sidebar from '../components/sidebar/sidebar';
 import UploadForm from '../components/UploadForm';
+import HistoryDataList from '../components/HistoryDataList';
+import aiIcon from '../assets/ai-settings-spark--cog-gear-settings-machine-artificial-intelligence.svg';
+import { fetchCSIFileMeta, type CSIFileMeta } from '../services/api';
 
-const App: React.FC = () => {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8 px-4 sm:px-6">
-      <div className="max-w-3xl mx-auto"> {/* Reduced max width here */}
-        <header className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
+const DataSettingPage: React.FC = () => {
+  // histori uploads di sini
+  const [uploads, setUploads] = useState<CSIFileMeta[]>([]);
+
+  // fetch histori awal
+  useEffect(() => {
+    (async () => {
+      const list = await fetchCSIFileMeta();
+      setUploads(list || []);
+    })();
+  }, []);
+
+  // callback yg akan dipanggil oleh UploadForm
+  const handleUploadSuccess = (meta: CSIFileMeta) => {
+    // tambahkan file baru di depan array
+    setUploads(prev => [meta, ...prev]);
+  };
+
+     return (
+    <div className="flex bg-gray-100 min-h-screen">
+      {/* ← Sidebar full‐height */}
+      <aside className="flex-shrink-0">
+        <Sidebar />
+      </aside>
+
+      {/* ← Konten utama */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="flex items-center bg-white h-[122px] px-8 shadow-sm">
+          <img src={aiIcon} alt="AI Icon" className="w-[52px] h-[52px]" />
+          <div className="ml-4">
+            <h1 className="text-[23.5px] font-bold text-[#1c1c1c]">Laman Pengaturan</h1>
+            <p className="text-[17.2px] text-[#7a7a7a]">
+Laman pengaturan memungkinkan anda untuk mengunggah metode lokalisasi dan mengatur ruangan lokalisasi            </p>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-3 tracking-tight">CSI Data Management System</h1>
-          <p className="text-gray-600 max-w-md mx-auto">
-            Upload, manage, and analyze CSI parameter data for indoor positioning
-          </p>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8"> {/* Adjust grid columns */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-              <h2 className="text-xl font-semibold text-gray-800 mb-6 pb-2 border-b border-gray-100">Data Upload</h2>
-              <UploadForm />
-            </div>
+        {/* Body */}
+        <main className="flex-1 p-8 overflow-auto">
+          <div className="grid grid-cols-1 items-start md:grid-cols-2 gap-8">
+            {/* kiri */}
+            <UploadForm onUploadSuccess={handleUploadSuccess} />
+            {/* kanan */}
+            <HistoryDataList uploads={uploads} />
           </div>
-        </div>
-
-        <footer className="mt-16 pt-6 border-t border-gray-200 text-center">
-          <div className="flex flex-col sm:flex-row justify-center items-center space-y-2 sm:space-y-0 sm:space-x-8">
-            <p className="text-gray-600 text-sm">CSI Data Management System v1.0</p>
-            <p className="text-gray-500 text-sm">Backend: http://localhost:8080</p>
-            <p className="text-gray-500 text-sm">© 2023 Indoor Positioning Lab</p>
-          </div>
-        </footer>
+        </main>
       </div>
     </div>
   );
 };
 
-export default App;
+export default DataSettingPage;

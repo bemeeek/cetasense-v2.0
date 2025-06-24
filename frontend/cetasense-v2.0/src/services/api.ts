@@ -83,6 +83,10 @@ export const fetchCSIFileMeta = async (): Promise<CSIFileMeta[]> => {
     }
 }
 
+export const deleteUpload = async (id: string): Promise<void> => {
+  await api.delete(`/uploads/${id}`);
+};
+
 export const fetchRuangan = async (): Promise<Ruangan[]> => {
     try {
         const response = await api.get<Ruangan[]>('/ruangan');
@@ -92,6 +96,11 @@ export const fetchRuangan = async (): Promise<Ruangan[]> => {
         throw new Error("Failed to fetch Ruangan.");
     }
 }
+
+export const renameUpload = async (id: string, new_name: string): Promise<CSIFileMeta> => {
+  const resp = await api.put<CSIFileMeta>(`/uploads/${id}`, { new_name });  // Menggunakan `new_name` untuk parameter
+  return resp.data;
+};
 
 export const fetchRoom = () => api.get<Ruangan[]>('/ruangan');
 export const createRoom = (room: RuanganCreate) =>

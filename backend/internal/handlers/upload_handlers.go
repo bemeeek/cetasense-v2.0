@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"github.com/minio/minio-go/v7"
 
 	"cetasense-v2.0/config"
@@ -152,4 +154,79 @@ func (h *UploadHandler) GetAllUploads(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, files)
+}
+
+func (h *UploadHandler) DeleteUpload(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get file ID from URL parameters
+	vars := mux.Vars(r)
+	fileID := vars["id"]
+
+	// Delete file from MinIO
+	if err := h.minioClient.RemoveObject(ctx, h.bucketName, fmt.Sprintf("Data-Parameter/%s", fileID), minio.RemoveObjectOptions{}); err != nil {
+		log.Printf("MinIO RemoveObject error: %v", err)
+		respondError(w, http.StatusInternalServerError, "Failed to delete file from storage: "+err.Error())
+		return
+	}
+
+	// Remove metadata from MariaDB via repository
+	if err := h.csvRepo.Delete(ctx, fileID); err != nil {
+		log.Printf("CSVFileRepository.Delete error: %v", err)
+		respondError(w, http.StatusInternalServerError, "Failed to delete metadata: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "File deleted successfully",
+	})
+}
+
+func (h *UploadHandler) UpdateName(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Ambil ID file dari parameter URL
+	vars := mux.Vars(r)
+	fileID := vars["id"]
+
+	// Pastikan ID file tidak kosong
+	if fileID == "" {
+		respondError(w, http.StatusBadRequest, "File ID is required")
+		return
+	}
+
+	// Parse 'new_name' dari body JSON
+	var requestData struct {
+		NewName string `json:"new_name"`
+	}
+
+	// Decode body JSON
+	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid JSON format")
+		return
+	}
+
+	// Pastikan 'new_name' tidak kosong
+	if requestData.NewName == "" {
+		respondError(w, http.StatusBadRequest, "New name is required")
+		return
+	}
+
+	// Update metadata file dalam repositori
+	fileMeta := &models.CSI_File{
+		ID:       fileID,
+		FileName: requestData.NewName,
+	}
+
+	// Cek apakah update berhasil
+	if err := h.csvRepo.UpdateName(ctx, fileMeta); err != nil {
+		log.Printf("CSVFileRepository.UpdateName error: %v", err)
+		respondError(w, http.StatusInternalServerError, "Failed to update file name: "+err.Error())
+		return
+	}
+
+	// Respons berhasil
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "File name updated successfully",
+	})
 }

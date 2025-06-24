@@ -76,3 +76,18 @@ func (r *CSVFileRepository) GetByID(ctx context.Context, id string) (*models.CSI
 	}
 	return f, nil
 }
+
+func (r *CSVFileRepository) Delete(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, `
+		DELETE FROM data_csv WHERE id = ?`, id)
+	return err
+}
+
+func (r *CSVFileRepository) UpdateName(ctx context.Context, f *models.CSI_File) error {
+	query := `
+        UPDATE data_csv
+        SET filename = ?
+        WHERE id = ?`
+	_, err := r.db.ExecContext(ctx, query, f.FileName, f.ID)
+	return err
+}
