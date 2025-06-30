@@ -1,0 +1,20 @@
+# Mengabaikan folder virtual environment
+.venv/
+venv/
+
+# Mengabaikan file sementara dan log
+*.log
+*.tmp
+
+# Mengabaikan node_modules
+node_modules/
+
+# Mengabaikan file konfigurasi IDE
+.vscode/
+
+# Mengabaikan file konfigurasi Python
+__pycache__/
+*.pyc
+
+# Mengabaikan loc-algorithm
+loc-algorithm/
