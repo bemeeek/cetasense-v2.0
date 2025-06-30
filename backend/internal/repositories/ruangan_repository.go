@@ -20,8 +20,8 @@ func NewRuanganRepository(db *sql.DB) *RuanganRepository {
 func (r *RuanganRepository) Create(ctx context.Context, ruangan *models.Ruangan) error {
 	stmt, err := r.db.PrepareContext(ctx, `
         INSERT INTO ruangan 
-        (id, nama_ruangan, panjang_ruangan, lebar_ruangan, posisi_tx, posisi_rx)
-        VALUES (?, ?, ?, ?, ?, ?)`)
+        (id, nama_ruangan, panjang_ruangan, lebar_ruangan, posisi_x_tx, posisi_y_tx, posisi_x_rx, posisi_y_rx)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return fmt.Errorf("prepare error: %w", err)
 	}
@@ -32,8 +32,10 @@ func (r *RuanganRepository) Create(ctx context.Context, ruangan *models.Ruangan)
 		ruangan.NamaRuangan,
 		ruangan.Panjang,
 		ruangan.Lebar,
-		ruangan.PosisiTX,
-		ruangan.PosisiRX,
+		ruangan.Posisi_X_TX,
+		ruangan.Posisi_Y_TX,
+		ruangan.Posisi_X_RX,
+		ruangan.Posisi_Y_RX,
 	)
 
 	return err
@@ -41,8 +43,8 @@ func (r *RuanganRepository) Create(ctx context.Context, ruangan *models.Ruangan)
 
 func (r *RuanganRepository) GetRuanganByNama(ctx context.Context, nama string) (*models.Ruangan, error) {
 	row := r.db.QueryRowContext(ctx, `
-        SELECT id, nama_ruangan, panjang_ruangan, lebar_ruangan, posisi_tx, posisi_rx 
-        FROM ruangan 
+        SELECT id, nama_ruangan, panjang_ruangan, lebar_ruangan, posisi_x_tx, posisi_y_tx, posisi_x_rx, posisi_y_rx
+        FROM ruangan
         WHERE nama_ruangan = ?`, nama)
 
 	var ruangan models.Ruangan
@@ -51,8 +53,10 @@ func (r *RuanganRepository) GetRuanganByNama(ctx context.Context, nama string) (
 		&ruangan.NamaRuangan,
 		&ruangan.Panjang,
 		&ruangan.Lebar,
-		&ruangan.PosisiTX,
-		&ruangan.PosisiRX,
+		&ruangan.Posisi_X_TX,
+		&ruangan.Posisi_Y_TX,
+		&ruangan.Posisi_X_RX,
+		&ruangan.Posisi_Y_RX,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("ruangan dengan nama '%s' tidak ditemukan: %v", nama, err)
@@ -65,7 +69,7 @@ func (r *RuanganRepository) GetByID(ctx context.Context, id string) (*models.Rua
 	row := r.db.QueryRowContext(ctx, `
         SELECT 
             id, nama_ruangan, panjang_ruangan, lebar_ruangan, 
-            posisi_tx, posisi_rx
+            posisi_x_tx, posisi_y_tx, posisi_x_rx, posisi_y_rx
         FROM ruangan 
         WHERE id = ?`, id)
 
@@ -75,8 +79,10 @@ func (r *RuanganRepository) GetByID(ctx context.Context, id string) (*models.Rua
 		&ruangan.NamaRuangan,
 		&ruangan.Panjang,
 		&ruangan.Lebar,
-		&ruangan.PosisiTX,
-		&ruangan.PosisiRX,
+		&ruangan.Posisi_X_TX,
+		&ruangan.Posisi_Y_TX,
+		&ruangan.Posisi_X_RX,
+		&ruangan.Posisi_Y_RX,
 	)
 
 	if err == sql.ErrNoRows {
@@ -91,7 +97,7 @@ func (r *RuanganRepository) Update(ctx context.Context, ruangan *models.Ruangan)
 	stmt, err := r.db.PrepareContext(ctx, `
 		UPDATE ruangan 
 		SET nama_ruangan = ?, panjang_ruangan = ?, lebar_ruangan = ?, 
-			posisi_tx = ?, posisi_rx = ? 
+			posisi_x_tx = ?, posisi_y_tx = ?, posisi_x_rx = ?, posisi_y_rx = ? 
 		WHERE id = ?`)
 	if err != nil {
 		return fmt.Errorf("prepare error: %w", err)
@@ -102,8 +108,10 @@ func (r *RuanganRepository) Update(ctx context.Context, ruangan *models.Ruangan)
 		ruangan.NamaRuangan,
 		ruangan.Panjang,
 		ruangan.Lebar,
-		ruangan.PosisiTX,
-		ruangan.PosisiRX,
+		ruangan.Posisi_X_TX,
+		ruangan.Posisi_Y_TX,
+		ruangan.Posisi_X_RX,
+		ruangan.Posisi_Y_RX,
 		ruangan.ID,
 	)
 
@@ -133,7 +141,7 @@ func (r *RuanganRepository) GetAll(ctx context.Context) ([]*models.Ruangan, erro
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT 
 			id, nama_ruangan, panjang_ruangan, lebar_ruangan, 
-			posisi_tx, posisi_rx
+			posisi_x_tx, posisi_y_tx, posisi_x_rx, posisi_y_rx
 		FROM ruangan`)
 	if err != nil {
 		return nil, fmt.Errorf("query error: %w", err)
@@ -148,8 +156,10 @@ func (r *RuanganRepository) GetAll(ctx context.Context) ([]*models.Ruangan, erro
 			&ruangan.NamaRuangan,
 			&ruangan.Panjang,
 			&ruangan.Lebar,
-			&ruangan.PosisiTX,
-			&ruangan.PosisiRX,
+			&ruangan.Posisi_X_TX,
+			&ruangan.Posisi_Y_TX,
+			&ruangan.Posisi_X_RX,
+			&ruangan.Posisi_Y_RX,
 		); err != nil {
 			return nil, fmt.Errorf("scan error: %w", err)
 		}

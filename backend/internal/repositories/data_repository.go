@@ -18,8 +18,8 @@ func NewDataRepository(db *sql.DB) *DataRepository {
 
 func (r *DataRepository) GetRuanganByNama(ctx context.Context, nama string) (*models.Ruangan, error) {
 	row := r.db.QueryRowContext(ctx, `
-        SELECT id, nama_ruangan, panjang_ruangan, lebar_ruangan, posisi_tx, posisi_rx 
-        FROM ruangan 
+        SELECT id, nama_ruangan, panjang_ruangan, lebar_ruangan, posisi_x_tx, posisi_y_tx, posisi_x_rx, posisi_y_rx
+        FROM ruangan
         WHERE nama_ruangan = ?`, nama)
 
 	var ruangan models.Ruangan
@@ -28,8 +28,10 @@ func (r *DataRepository) GetRuanganByNama(ctx context.Context, nama string) (*mo
 		&ruangan.NamaRuangan,
 		&ruangan.Panjang,
 		&ruangan.Lebar,
-		&ruangan.PosisiTX,
-		&ruangan.PosisiRX,
+		&ruangan.Posisi_X_TX,
+		&ruangan.Posisi_Y_TX,
+		&ruangan.Posisi_X_RX,
+		&ruangan.Posisi_Y_RX,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("ruangan dengan nama '%s' tidak ditemukan: %v", nama, err)

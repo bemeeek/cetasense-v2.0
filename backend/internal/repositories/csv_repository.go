@@ -11,6 +11,10 @@ type CSVFileRepository struct {
 	db *sql.DB
 }
 
+func (r *CSVFileRepository) GetFileNameByID(ctx context.Context, fileID string) (any, any) {
+	panic("unimplemented")
+}
+
 func NewCSVFileRepository(db *sql.DB) *CSVFileRepository {
 	return &CSVFileRepository{db: db}
 }

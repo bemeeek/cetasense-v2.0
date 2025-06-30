@@ -158,19 +158,34 @@ func (h *UploadHandler) GetAllUploads(w http.ResponseWriter, r *http.Request) {
 
 func (h *UploadHandler) DeleteUpload(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	fileID := mux.Vars(r)["id"]
+	if fileID == "" {
+		respondError(w, http.StatusBadRequest, "File ID is required")
+		return
+	}
 
-	// Get file ID from URL parameters
-	vars := mux.Vars(r)
-	fileID := vars["id"]
+	// 1. Ambil metadata dari DB
+	fileMeta, err := h.csvRepo.GetByID(ctx, fileID)
+	if err != nil {
+		log.Printf("CSVFileRepository.GetByID error: %v", err)
+		respondError(w, http.StatusNotFound, "File not found: "+err.Error())
+		return
+	}
 
-	// Delete file from MinIO
-	if err := h.minioClient.RemoveObject(ctx, h.bucketName, fmt.Sprintf("Data-Parameter/%s", fileID), minio.RemoveObjectOptions{}); err != nil {
+	// 2. Hapus objek di MinIO menggunakan ObjectPath yang sebenarnya
+	if err := h.minioClient.RemoveObject(
+		ctx,
+		h.bucketName,
+		fileMeta.ObjectPath,
+		minio.RemoveObjectOptions{},
+	); err != nil {
 		log.Printf("MinIO RemoveObject error: %v", err)
 		respondError(w, http.StatusInternalServerError, "Failed to delete file from storage: "+err.Error())
 		return
 	}
+	log.Printf("File deleted from MinIO: %s", fileMeta.ObjectPath)
 
-	// Remove metadata from MariaDB via repository
+	// 3. Hapus metadata dari DB
 	if err := h.csvRepo.Delete(ctx, fileID); err != nil {
 		log.Printf("CSVFileRepository.Delete error: %v", err)
 		respondError(w, http.StatusInternalServerError, "Failed to delete metadata: "+err.Error())

@@ -13,16 +13,20 @@ export interface Ruangan {
     nama_ruangan: string;
     panjang: number;
     lebar: number;
-    posisi_tx: number;
-    posisi_rx: number;
+    posisi_x_tx: number;
+    posisi_y_tx: number;
+    posisi_x_rx: number;
+    posisi_y_rx: number;
 }
 
 export interface RuanganCreate {
     nama_ruangan: string;
     panjang: number;
     lebar: number;
-    posisi_tx: number;
-    posisi_rx: number;
+    posisi_x_tx: number;
+    posisi_y_tx: number;
+    posisi_x_rx: number;
+    posisi_y_rx: number;
 }
 export interface Filter {
     id: string;

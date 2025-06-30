@@ -1,77 +1,125 @@
-import React, { useState, useEffect} from 'react';
-import { createRoom, deleteRoom, fetchRoom, updateRoom,  type Ruangan, type RuanganCreate } from '../services/api';
+// src/pages/RoomSettingPage.tsx
+import React, { useState, useEffect } from 'react';
+import Sidebar from '../components/sidebar/sidebar';
 import RoomForm from '../components/RoomForm';
-import RoomList from '../components/RoomList';
-
-
-interface RoomFormProps {
-  initial?: Ruangan;
-  onCreate: (payload: RuanganCreate) => Promise<void>;
-  onUpdate: (full: Ruangan) => Promise<void>;
-  onCancel: () => void;
-}
-
+import HistoryRoomList from '../components/RoomList';
+import aiIcon from '../assets/ai-settings-spark--cog-gear-settings-machine-artificial-intelligence.svg';
+import {
+  fetchRoom,
+  createRoom,
+  updateRoom,
+  deleteRoom,
+  type Ruangan,
+  type RuanganCreate
+} from '../services/api';
 
 const RoomSettingPage: React.FC = () => {
-    const [rooms, setRooms] = useState<Ruangan[]>([]);
-    const [selectedRoom, setSelectedRoom] = useState<Ruangan | null>(null);
-    const [isEditing, setIsEditing] = useState<boolean>(false);
-    const [error, setError] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<'metode' | 'ruangan' | 'data'>('ruangan');
+  const [rooms, setRooms] = useState<Ruangan[]>([]);
+  const [selectedRoom, setSelectedRoom] = useState<Ruangan | undefined>(undefined);
+  const [error, setError] = useState<string>('');
 
-    const loadRooms = async () => {
-        const response = await fetchRoom();
-        setRooms(response.data ?? []);
+  const loadRooms = async () => {
+    try {
+      const resp = await fetchRoom();
+      setRooms(resp.data ?? []);
+    } catch {
+      setError('Gagal memuat data ruangan.');
     }
+  };
 
-    useEffect(() => {
-        loadRooms();
-    }, []);
+  useEffect(() => {
+    loadRooms();
+  }, []);
 
-    return (
-        <>
-        <div className='flex space-x-6'>
-            <div className='w-1/3'>
-                <RoomList
-                    rooms={rooms}
-                    onRoomSelect={(room) => {
-                        setSelectedRoom(room);
-                        setIsEditing(false);
-                    }}
-                    onRoomDelete={async (id) => {
-                        try {
-                            await deleteRoom(id);
-                            loadRooms();
-                        } catch (err) {
-                            setError("Gagal menghapus ruangan.");
-                        }
-                    }}
-                    onRoomReload={loadRooms}
-                />
+  // handler save (create/update)
+  const handleSave = async (payload: RuanganCreate | Ruangan) => {
+    try {
+      if ('id' in payload) {
+        await updateRoom(payload as Ruangan);
+      } else {
+        await createRoom(payload as RuanganCreate);
+      }
+      setSelectedRoom(undefined);
+      await loadRooms();
+    } catch {
+      setError('Gagal menyimpan ruangan.');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteRoom(id);
+      if (selectedRoom?.id === id) setSelectedRoom(undefined);
+      await loadRooms();
+    } catch {
+      setError('Gagal menghapus ruangan.');
+    }
+  };
+
+  return (
+    <div className="flex bg-gray-100 min-h-screen">
+      {/* ← Sidebar */}
+      <aside className="flex-shrink-0">
+        <Sidebar />
+      </aside>
+
+      {/* ← Konten Utama */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="flex items-center bg-white h-[122px] px-8 shadow-sm">
+          <img src={aiIcon} alt="AI Icon" className="w-[52px] h-[52px]" />
+          <div className="ml-4">
+            <h1 className="text-[23.5px] font-bold text-[#1c1c1c]">
+              Laman Pengaturan
+            </h1>
+            <p className="text-[17.2px] text-[#7a7a7a]">
+              Laman pengaturan memungkinkan anda untuk mengunggah metode
+              lokalisasi dan mengatur ruangan lokalisasi
+            </p>
+          </div>
+        </header>
+
+        {/* Tabs */}
+        {/* <nav className="bg-gray-50 px-8 py-4 border-b">
+          {['metode','ruangan','data'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab as any)}
+              className={`px-4 py-2 -mb-px font-medium rounded-t-lg mr-2
+                ${activeTab === tab
+                  ? 'bg-white border border-b-0 shadow-sm'
+                  : 'bg-gray-100'}
+              `}
+            >
+              {tab === 'metode' ? 'Pengaturan Metode'
+               : tab === 'ruangan' ? 'Pengaturan Ruangan'
+               : 'Pengaturan Data'}
+            </button>
+          ))}
+        </nav> */}
+
+        {/* Body */}
+        <main className="flex-1 p-8 overflow-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <RoomForm
+                initial={selectedRoom}
+                onCreate={dto => handleSave(dto)}
+                onUpdate={room => handleSave(room)}
+                onCancel={() => setSelectedRoom(undefined)}
+              />
+              <HistoryRoomList
+                rooms={rooms}
+                onSelect={room => setSelectedRoom(room)}
+                onDelete={handleDelete}
+              />
             </div>
-            <div className='w-2/3'>
-                <RoomForm
-                    initial={selectedRoom ?? undefined}
-                    onCreate={async dto => {
-                        await createRoom(dto);
-                        setSelectedRoom(null);
-                        loadRooms();
-                    }}
-                    onUpdate={async full => {
-                        await updateRoom(full);
-                        setSelectedRoom(null);
-                        loadRooms();
-                    }}
-                    onCancel={() => {
-                        setSelectedRoom(null);
-                    }}
-                    />
-            </div>
-        </div>
-        {error && (
-        <p className="text-red-600 text-sm mt-2">{error}</p>
-      )}
-        </>
-    );
-}
+
+          {error && <p className="text-red-600 mt-4">{error}</p>}
+        </main>
+      </div>
+    </div>
+  );
+};
 
 export default RoomSettingPage;

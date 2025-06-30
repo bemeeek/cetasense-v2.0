@@ -88,8 +88,10 @@ func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 		NamaRuangan: request.NamaRuangan,
 		Panjang:     request.Panjang,
 		Lebar:       request.Lebar,
-		PosisiTX:    request.PosisiTX,
-		PosisiRX:    request.PosisiRX,
+		Posisi_X_TX: request.Posisi_X_TX,
+		Posisi_Y_TX: request.Posisi_Y_TX,
+		Posisi_X_RX: request.Posisi_X_RX,
+		Posisi_Y_RX: request.Posisi_Y_RX,
 	}
 	room.GenerateID()
 
@@ -122,8 +124,10 @@ func (h *RoomHandler) UpdateRoom(w http.ResponseWriter, r *http.Request) {
 		NamaRuangan: request.NamaRuangan,
 		Panjang:     request.Panjang,
 		Lebar:       request.Lebar,
-		PosisiTX:    request.PosisiTX,
-		PosisiRX:    request.PosisiRX,
+		Posisi_X_TX: request.Posisi_X_TX,
+		Posisi_Y_TX: request.Posisi_Y_TX,
+		Posisi_X_RX: request.Posisi_X_RX,
+		Posisi_Y_RX: request.Posisi_Y_RX,
 	}
 
 	if err := h.repo.Update(r.Context(), &room); err != nil {
