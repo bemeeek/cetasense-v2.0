@@ -20,7 +20,6 @@ interface Props {
 export const PropertyFrameWrapper: React.FC<Props> = ({
   className = '',
   img,
-  property1,
   vector,
   vector1,
 }) => (

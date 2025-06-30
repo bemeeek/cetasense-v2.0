@@ -59,3 +59,34 @@ code {
   border-color: #3b82f6;
 }
 
+.text-header {
+  @apply text-[#1c1c1c];
+  @apply font-bold;
+  @apply text-[23.5px];
+}
+
+.text-header2 {
+  @apply text-[#7a7a7a];
+  @apply text-[16px];
+}
+
+.logo-card {
+  @apply w-10 h-10;
+}
+
+.text-card1 {
+  @apply text-lg;
+  @apply font-bold;
+  @apply text-gray-900;
+}
+
+.text-card2 {
+  @apply text-sm;
+  @apply text-gray-500;
+}
+
+.text-warning {
+  @apply text-red-500;
+  @apply font-semibold;
+}
+

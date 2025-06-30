@@ -43,7 +43,7 @@ export const Submit: React.FC<Props> = ({
     >
       <span
         className={`[font-family:'Inter-Bold',Helvetica] text-[#fefefe] font-bold leading-[normal] absolute ${
-          state.property1 === "variant-2" ? "left-[25px] tracking-[-0.39px] text-[19.7px] top-0.5 h-6"
+          state.property1 === "variant-2" ? "left-[25px] tracking-[-0.30px] text-[19.7px] top-0.5 h-6"
           : "left-[29px] tracking-[-0.35px] text-[17.3px] top-1 h-[21px]"
         }`}
       >

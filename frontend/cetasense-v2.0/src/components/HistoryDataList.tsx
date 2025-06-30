@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import deleteIcon from '../assets/delete.svg';
 import editIcon from '../assets/edit.svg';
-import Icon from '../assets/Union.svg';
 import {
   fetchCSIFileMeta,
   deleteUpload,
@@ -10,8 +9,12 @@ import {
 } from '../services/api';
 import { FolderOpenIcon } from '@heroicons/react/16/solid';
 
-const HistoryDataList: React.FC = () => {
-  const [uploads, setUploads] = useState<CSIFileMeta[]>([]);
+interface HistoryDataListProps {
+  uploads: CSIFileMeta[];
+  setUploads: React.Dispatch<React.SetStateAction<CSIFileMeta[]>>; // Tambahkan prop untuk setUploads
+}
+
+const HistoryDataList: React.FC<HistoryDataListProps> = ({ uploads, setUploads }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editingFileId, setEditingFileId] = useState<string | null>(null); // Track which file is being edited
   const [newName, setNewName] = useState<string>(''); // Store the new name for editing
@@ -19,9 +22,9 @@ const HistoryDataList: React.FC = () => {
   useEffect(() => {
     (async () => {
       const list = await fetchCSIFileMeta();
-      setUploads(list);
+      setUploads(list || []); // Update state with fetched data
     })();
-  }, []);
+  }, [setUploads]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -35,7 +38,7 @@ const HistoryDataList: React.FC = () => {
     if (!window.confirm('Yakin ingin menghapus file ini?')) return;
     try {
       await deleteUpload(id);
-      setUploads(u => u.filter(x => x.id !== id));
+      setUploads(prev => prev.filter(x => x.id !== id));
       setSelectedIds(s => { s.delete(id); return new Set(s); });
     } catch (err) {
       console.error(err);
@@ -54,8 +57,8 @@ const HistoryDataList: React.FC = () => {
     if (!newName || newName.trim() === '') return; // Do nothing if name is empty
     try {
       const updated = await renameUpload(editingFileId!, newName); // Forcefully unwrapping as we already checked if editingFileId is valid
-      setUploads(list =>
-        list.map(x => (x.id === editingFileId ? { ...x, file_name: updated.file_name } : x))
+      setUploads(prev =>
+        prev.map(x => (x.id === editingFileId ? { ...x, file_name: updated.file_name } : x))
       );
       setEditingFileId(null); // Stop editing after successful update
     } catch (err) {
@@ -79,11 +82,11 @@ const HistoryDataList: React.FC = () => {
     <div className="flex flex-col bg-white rounded-lg shadow overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 px-6 py-4 border-b">
-        <FolderOpenIcon className="w-8 h-8" />
+        <FolderOpenIcon className="logo-card" />
         <div>
-          <h2 className="font-bold text-lg text-black">Histori Data Tersimpan</h2>
-          <p className="text-sm text-gray-500">
-            Select and upload the files of your choice
+          <h2 className="text-card1">Histori Data Tersimpan</h2>
+          <p className="text-card2">
+            Pilih dan unggah file yang diinginkan
           </p>
         </div>
       </div>

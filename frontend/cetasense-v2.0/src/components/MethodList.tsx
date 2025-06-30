@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { type Methods, deleteMethod } from '../services/api';
 import deleteIcon from '../assets/delete.svg';
 import editIcon from '../assets/edit.svg';
-import { Checkbox } from '../components/button/checkbox'; // Custom Checkbox component if you want it
 import { FolderOpenIcon } from '@heroicons/react/16/solid';
 
 interface MethodListProps {
@@ -13,7 +12,6 @@ interface MethodListProps {
 
 const MethodList: React.FC<MethodListProps> = ({
   methods,
-  onMethodSelect,
   onMethodDelete
 }) => {
   const list = methods ?? [];
@@ -71,8 +69,8 @@ const MethodList: React.FC<MethodListProps> = ({
       <div className="flex items-center gap-3 px-6 py-4 border-b">
         <FolderOpenIcon className="w-8 h-8" />
         <div>
-          <h2 className="font-bold text-lg text-black">Histori Algoritma Tersimpan</h2>
-          <p className="text-sm text-gray-500">Pilih dan unggah metode yang diinginkan</p>
+          <h2 className="text-card1">Histori Algoritma Tersimpan</h2>
+          <p className="text-card2">Pilih dan unggah metode yang diinginkan</p>
         </div>
       </div>
 

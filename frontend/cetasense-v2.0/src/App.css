@@ -42,3 +42,9 @@
 .read-the-docs {
   color: #888;
 }
+
+.text-header {
+  @apply text-gray-700;
+  @apply text-2xl;
+  @apply font-bold;
+}

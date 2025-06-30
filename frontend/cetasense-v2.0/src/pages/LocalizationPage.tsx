@@ -11,8 +11,7 @@ export const LocalizationPage: React.FC = () => {
   const [selData, setSelData] = useState('');
   const [selRuangan, setSelRuangan] = useState('');
   const [selMethod, setSelMethod] = useState('');
-  const [jobStatus, setJobStatus] = useState<string | null>(null);
-  const [jobId, setJobId] = useState<string>('');
+  const [jobStatus] = useState<string | null>(null);
   const [result, setResult] = useState<{ x: number; y: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,12 +27,9 @@ export const LocalizationPage: React.FC = () => {
       setError(null);
       setIsLoading(true);
       setResult(null);
-      const { job_id, status } = await localize(selData, selMethod, selRuangan);
+      const { job_id } = await localize(selData, selMethod, selRuangan);
       setJobId(job_id);
-      setJobStatus(status);
-
       listenLocalizationResult(job_id, (data) => {
-        setJobStatus(data.status);
         if (data.status === 'done') {
           setResult({ x: data.hasil_x!, y: data.hasil_y! });
           setIsLoading(false);
@@ -83,3 +79,7 @@ export const LocalizationPage: React.FC = () => {
 };
 
 export default LocalizationPage;
+function setJobId(_job_id: string) {
+  throw new Error('Function not implemented.');
+}
+

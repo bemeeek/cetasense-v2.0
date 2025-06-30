@@ -9,17 +9,15 @@ import UnionIcon from '../../assets/ai-settings-spark--cog-gear-settings-machine
 
 const menu = [
   { icon: HomeIcon, label: 'Home', to: '/home' },
-  { icon: DataIcon, label: 'Data Stream', to: '/data-stream' },
-  { icon: SettingsIcon, label: 'Settings Page', to: '/settings/algoritma', isSettings: true },
+  { icon: SettingsIcon, label: 'Pengaturan', to: '/settings/algoritma', isSettings: true},
+  { icon: DataIcon, label: 'Laman Data', to: '/data-stream' },
 ]
 
 const Sidebar: React.FC = () => {
   const [expanded, setExpanded] = useState(false)
   const location = useLocation()
 
-  const isSettingsActive = (path: string) => {
-    return location.pathname.startsWith('/settings')
-  }
+  const isSettingsActive = () => location.pathname.startsWith('/settings')
 
   return (
     <div
@@ -65,8 +63,9 @@ const Sidebar: React.FC = () => {
         <div className="space-y-3 px-2">
           {menu.map(({ icon, label, to, isSettings }) => {
             const isActive = isSettings 
-              ? isSettingsActive(to)
+              ? isSettingsActive()
               : location.pathname === to
+              
 
             return (
               <NavLink
@@ -116,7 +115,7 @@ const Sidebar: React.FC = () => {
       <div className="border-t border-gray-100 py-3">
         {expanded ? (
           <div className="px-4 text-xs text-gray-400 text-center">
-            © 2024 Cetasense
+            © 2025 Cetasense
           </div>
         ) : (
           <div className="flex justify-center">

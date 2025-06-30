@@ -1,13 +1,66 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- CRITICAL: Preload resources untuk LCP -->
+  <link rel="preload" href="/src/assets/ai-settings-spark--cog-gear-settings-machine-artificial-intelligence.svg" as="image" fetchpriority="high">
+  
+  <!-- Preload critical fonts jika menggunakan custom fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  
+  <!-- DNS prefetch untuk API calls -->
+  <link rel="dns-prefetch" href="//localhost:5173">
+  
+  <title>Method Settings</title>
+  
+  <!-- Inline critical CSS untuk above-the-fold content -->
+  <style>
+    /* Critical CSS untuk header section */
+    .header-critical {
+      display: flex;
+      align-items: center;
+      background-color: #ffffff;
+      height: 122px;
+      padding-left: 2rem;
+      padding-right: 2rem;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    }
+    
+    .header-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1c1c1c;
+      line-height: 1.25;
+      margin: 0;
+    }
+    
+    .header-description {
+      font-size: 1rem;
+      color: #7a7a7a;
+      line-height: 1.5;
+      margin: 0.25rem 0 0 0;
+      max-width: 60rem;
+    }
+    
+    /* Loading skeleton */
+    .skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, transparent 37%, #f0f0f0 63%);
+      background-size: 400% 100%;
+      animation: skeleton 1.4s ease-in-out infinite;
+    }
+    
+    @keyframes skeleton {
+      0% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
 </html>

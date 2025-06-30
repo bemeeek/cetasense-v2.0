@@ -15,7 +15,6 @@ import {
 import { TabSwitcher } from '../components/switchertab/TabSwitcher';
 
 const RoomSettingPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'metode' | 'ruangan' | 'data'>('ruangan');
   const [rooms, setRooms] = useState<Ruangan[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<Ruangan | undefined>(undefined);
   const [error, setError] = useState<string>('');
@@ -59,7 +58,7 @@ const RoomSettingPage: React.FC = () => {
   };
 
   return (
-    <div className="flex bg-gray-100 min-h-screen">
+    <div className="flex bg-gray-100 min-h-screen overflow-hidden">
       {/* ← Sidebar */}
       <aside className="flex-shrink-0">
         <Sidebar />

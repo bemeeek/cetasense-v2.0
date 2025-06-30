@@ -1,8 +1,7 @@
 // src/components/RoomList.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import deleteIcon from '../assets/delete.svg';
-import editIcon   from '../assets/edit.svg';
-import dbIcon     from '../assets/Union.svg';         // icon database/kartu
+import editIcon   from '../assets/edit.svg'; // icon database/kartu
 import type { Ruangan } from '../services/api';
 import { FolderOpenIcon } from '@heroicons/react/16/solid';
 
@@ -34,10 +33,10 @@ const RoomList: React.FC<RoomListProps> = ({ rooms, onSelect, onDelete }) => {
     <div className="flex flex-col bg-white rounded-lg shadow overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 px-6 py-4 border-b">
-        <FolderOpenIcon className="w-8 h-8" />
+        <FolderOpenIcon className="logo-card" />
         <div>
-          <h2 className="font-bold text-lg text-black">Histori Ruang Tersimpan</h2>
-          <p className="text-sm text-gray-500">Select and manage saved rooms</p>
+          <h2 className="text-card1">Histori Ruang Tersimpan</h2>
+          <p className="text-card2">Select and manage saved rooms</p>
         </div>
       </div>
 

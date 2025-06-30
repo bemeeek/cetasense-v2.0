@@ -7,7 +7,7 @@ interface Props {
 }
 
 export const LocalizationResult: React.FC<Props> = ({ ruangan, result }) => {
-  const { panjang, lebar, posisi_tx, posisi_rx, nama_ruangan } = ruangan;
+  const { panjang, lebar, posisi_x_tx, posisi_x_rx, posisi_y_tx, posisi_y_rx, nama_ruangan } = ruangan;
   const size = 400;
   const maxDivisions = 10;
   const divX = Math.min(maxDivisions, Math.ceil(panjang));
@@ -17,8 +17,8 @@ export const LocalizationResult: React.FC<Props> = ({ ruangan, result }) => {
     left: `${(x / panjang) * 100}%`,
     top: `${(y / lebar) * 100}%`
   });
-  const txPct = toPct(posisi_tx, 0);
-  const rxPct = toPct(posisi_rx, lebar);
+  const txPct = toPct(posisi_x_tx, posisi_y_tx);
+  const rxPct = toPct(posisi_x_rx, posisi_y_rx);
   const subPct = toPct(result.x, result.y);
 
   return (

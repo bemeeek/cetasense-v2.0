@@ -12,6 +12,16 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '')
       }
-    }
+    },
+    port: 5173,
+    host: 'localhost'
   },
+  preview: {
+    port: 5173,
+    host: 'localhost'
+  },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true
+    }
 })

@@ -10,7 +10,7 @@ import { TabSwitcher } from '../components/switchertab/TabSwitcher';
 const DataSettingPage: React.FC = () => {
   // histori uploads di sini
   const [uploads, setUploads] = useState<CSIFileMeta[]>([]);
-  const [activeTab, setActiveTab] = useState<'metode' | 'ruangan' | 'data'>('data');
+  // Removed unused activeTab state.
 
   // fetch histori awal
   useEffect(() => {
@@ -39,7 +39,7 @@ const DataSettingPage: React.FC = () => {
       <div className="flex-1 flex flex-col">
         {/* Header */}
         <header className="flex items-center bg-white h-[122px] px-8 shadow-sm">
-          <img src={aiIcon} alt="AI Icon" className="w-[52px] h-[52px]" />
+            <img src={aiIcon} alt="AI Icon" className="w-[52px] h-[52px]" />
           <div className="ml-4">
             <h1 className="text-[23.5px] font-bold text-[#1c1c1c]">Laman Pengaturan</h1>
             <p className="text-[17.2px] text-[#7a7a7a]">
@@ -56,7 +56,7 @@ const DataSettingPage: React.FC = () => {
             {/* kiri */}
             <UploadForm onUploadSuccess={handleUploadSuccess} />
             {/* kanan */}
-            <HistoryDataList />
+            <HistoryDataList uploads={uploads} setUploads={setUploads} />
           </div>
         </main>
       </div>

@@ -3,8 +3,8 @@ import DataSettingPage from "./pages/DataSettingPage";
 // import HomePage from "./pages/HomePage";
 import RoomPage from "./pages/RoomSettingPage";
 import MethodSettingPage from "./pages/MethodsSettingPage";
-import HeatMapPage from "./pages/HeatMapPage";
-import LocalizationPage from "./pages/LocalizationPage";
+// import HeatMapPage from "./pages/HeatMapPage";
+// import LocalizationPage from "./pages/LocalizationPage";
 // import UploadPage from "./pages/MethodsSettingPage";
 
 function App() {
