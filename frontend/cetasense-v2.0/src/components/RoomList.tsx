@@ -4,6 +4,7 @@ import deleteIcon from '../assets/delete.svg';
 import editIcon   from '../assets/edit.svg';
 import dbIcon     from '../assets/Union.svg';         // icon database/kartu
 import type { Ruangan } from '../services/api';
+import { FolderOpenIcon } from '@heroicons/react/16/solid';
 
 interface RoomListProps {
   rooms: Ruangan[];
@@ -33,7 +34,7 @@ const RoomList: React.FC<RoomListProps> = ({ rooms, onSelect, onDelete }) => {
     <div className="flex flex-col bg-white rounded-lg shadow overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 px-6 py-4 border-b">
-        <img src={dbIcon} alt="Histori Ruang" className="w-8 h-8" />
+        <FolderOpenIcon className="w-8 h-8" />
         <div>
           <h2 className="font-bold text-lg text-black">Histori Ruang Tersimpan</h2>
           <p className="text-sm text-gray-500">Select and manage saved rooms</p>
@@ -55,7 +56,7 @@ const RoomList: React.FC<RoomListProps> = ({ rooms, onSelect, onDelete }) => {
       </div>
 
       {/* List items */}
-      <div className="flex-1 overflow-auto p-4 space-y-2">
+      <div className="flex-1 overflow-auto p-4 space-y-4">
         {rooms.map(r => {
           const isSelected = selectedIds.has(r.id);
           return (

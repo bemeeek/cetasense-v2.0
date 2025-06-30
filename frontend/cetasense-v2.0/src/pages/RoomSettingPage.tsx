@@ -12,6 +12,7 @@ import {
   type Ruangan,
   type RuanganCreate
 } from '../services/api';
+import { TabSwitcher } from '../components/switchertab/TabSwitcher';
 
 const RoomSettingPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'metode' | 'ruangan' | 'data'>('ruangan');
@@ -74,33 +75,16 @@ const RoomSettingPage: React.FC = () => {
               Laman Pengaturan
             </h1>
             <p className="text-[17.2px] text-[#7a7a7a]">
-              Laman pengaturan memungkinkan anda untuk mengunggah metode
-              lokalisasi dan mengatur ruangan lokalisasi
+              Laman pengaturan memungkinkan anda untuk mengunggah algoritma pemosisian, data parameter CSI, dan mengatur ruangan untuk sistem pemosisian
             </p>
           </div>
         </header>
 
         {/* Tabs */}
-        {/* <nav className="bg-gray-50 px-8 py-4 border-b">
-          {['metode','ruangan','data'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab as any)}
-              className={`px-4 py-2 -mb-px font-medium rounded-t-lg mr-2
-                ${activeTab === tab
-                  ? 'bg-white border border-b-0 shadow-sm'
-                  : 'bg-gray-100'}
-              `}
-            >
-              {tab === 'metode' ? 'Pengaturan Metode'
-               : tab === 'ruangan' ? 'Pengaturan Ruangan'
-               : 'Pengaturan Data'}
-            </button>
-          ))}
-        </nav> */}
+        <TabSwitcher />
 
         {/* Body */}
-        <main className="flex-1 p-8 overflow-auto">
+        <main className="flex-1 p-8 mt-0 overflow-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <RoomForm
                 initial={selectedRoom}

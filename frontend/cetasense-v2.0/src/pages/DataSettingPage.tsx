@@ -5,10 +5,12 @@ import UploadForm from '../components/UploadForm';
 import HistoryDataList from '../components/HistoryDataList';
 import aiIcon from '../assets/ai-settings-spark--cog-gear-settings-machine-artificial-intelligence.svg';
 import { fetchCSIFileMeta, type CSIFileMeta } from '../services/api';
+import { TabSwitcher } from '../components/switchertab/TabSwitcher';
 
 const DataSettingPage: React.FC = () => {
   // histori uploads di sini
   const [uploads, setUploads] = useState<CSIFileMeta[]>([]);
+  const [activeTab, setActiveTab] = useState<'metode' | 'ruangan' | 'data'>('data');
 
   // fetch histori awal
   useEffect(() => {
@@ -31,6 +33,8 @@ const DataSettingPage: React.FC = () => {
         <Sidebar />
       </aside>
 
+      
+
       {/* ← Konten utama */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
@@ -39,9 +43,12 @@ const DataSettingPage: React.FC = () => {
           <div className="ml-4">
             <h1 className="text-[23.5px] font-bold text-[#1c1c1c]">Laman Pengaturan</h1>
             <p className="text-[17.2px] text-[#7a7a7a]">
-Laman pengaturan memungkinkan anda untuk mengunggah metode lokalisasi dan mengatur ruangan lokalisasi            </p>
+              Laman pengaturan memungkinkan anda untuk mengunggah algoritma pemosisian, data parameter CSI, dan mengatur ruangan untuk sistem pemosisian
+            </p>
           </div>
         </header>
+
+        <TabSwitcher /> 
 
         {/* Body */}
         <main className="flex-1 p-8 overflow-auto">
@@ -49,7 +56,7 @@ Laman pengaturan memungkinkan anda untuk mengunggah metode lokalisasi dan mengat
             {/* kiri */}
             <UploadForm onUploadSuccess={handleUploadSuccess} />
             {/* kanan */}
-            <HistoryDataList uploads={uploads} />
+            <HistoryDataList />
           </div>
         </main>
       </div>

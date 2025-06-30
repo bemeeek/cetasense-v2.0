@@ -108,7 +108,7 @@ const RoomForm: React.FC<RoomFormProps> = ({
     <div className="flex flex-col flex-1 bg-white rounded-lg shadow max-h-fit">
       {/* Header */}
       <div className="flex items-center gap-3 px-6 py-4 border-b">
-        <MapPinIcon className="w-10 h-10 text-gray-700" />
+        <MapPinIcon className="w-8 h-8 text-gray-700" />
         <div>
           <h2 className="font-bold text-lg text-black">Pengaturan Ruangan</h2>
           <p className="text-sm text-gray-500">

@@ -8,6 +8,7 @@ import {
   renameUpload,
   type CSIFileMeta
 } from '../services/api';
+import { FolderOpenIcon } from '@heroicons/react/16/solid';
 
 const HistoryDataList: React.FC = () => {
   const [uploads, setUploads] = useState<CSIFileMeta[]>([]);
@@ -78,7 +79,7 @@ const HistoryDataList: React.FC = () => {
     <div className="flex flex-col bg-white rounded-lg shadow overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 px-6 py-4 border-b">
-        <img src={Icon} alt="Icon" className="w-8 h-8" />
+        <FolderOpenIcon className="w-8 h-8" />
         <div>
           <h2 className="font-bold text-lg text-black">Histori Data Tersimpan</h2>
           <p className="text-sm text-gray-500">
@@ -102,7 +103,7 @@ const HistoryDataList: React.FC = () => {
       </div>
 
       {/* Daftar */}
-      <div className="flex-1 overflow-auto p-4 space-y-2">
+      <div className="flex-1 overflow-auto p-4 space-y-4">
         {uploads.map(u => {
           const isSelected = selectedIds.has(u.id);
           return (

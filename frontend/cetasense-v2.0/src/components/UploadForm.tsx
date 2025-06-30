@@ -19,6 +19,7 @@ import {
   type Filter,
   type CSIFileMeta
 } from '../services/api';
+import { CircleStackIcon } from '@heroicons/react/24/outline';
 
 interface Props {
   className?: string;
@@ -104,7 +105,7 @@ const UploadForm: React.FC<Props> = ({ className = '', onUploadSuccess }) => {
   return (
     <div className={`flex flex-col flex-1 bg-white rounded-lg shadow max-h-fit ${className}`}>      {/* Header */}
       <div className="flex items-center gap-3 px-6 py-4 border-b">
-        <img src={unionIcon} alt="Pengaturan Data" className="w-8 h-8" />
+        <CircleStackIcon className="w-8 h-8" />
         <div>
           <h2 className="font-bold text-lg text-black">Pengaturan Data</h2>
           <p className="text-sm text-gray-500">

@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import DataSettingPage from "./pages/DataSettingPage";
 // import HomePage from "./pages/HomePage";
 import RoomPage from "./pages/RoomSettingPage";
@@ -9,16 +9,16 @@ import LocalizationPage from "./pages/LocalizationPage";
 
 function App() {
     return (
-        <Router>
+        <BrowserRouter>
             <Routes>
-                {/* <Route path="/" element={<HomePage />} /> */}
-                <Route path="/data-setting" element={<DataSettingPage />} />
-                <Route path="/room-setting" element={<RoomPage />} />
-                <Route path="/upload-method" element={<MethodSettingPage />} />
-                <Route path="/plot-heatmap" element={<HeatMapPage />} />
-                <Route path="/localization" element={<LocalizationPage />} />
+                <Route path="/" element={<Navigate to="/settings/data" replace />} />
+                <Route path="settings">
+                <Route path="algoritma" element={<MethodSettingPage />} />
+                <Route path="ruangan" element={<RoomPage />} />
+                <Route path="data" element={<DataSettingPage />} />
+                </Route>
             </Routes>
-        </Router>
+        </BrowserRouter>
     );
 }
 export default App;

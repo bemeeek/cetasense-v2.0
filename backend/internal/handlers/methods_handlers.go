@@ -167,12 +167,24 @@ func (h *MethodsHandler) DeleteMethod(w http.ResponseWriter, r *http.Request) {
 	// atau kalau kamu menyimpan objectName langsung di DB, tinggal pakai method.ObjectPath
 
 	// 2. Hapus object di MinIO
-	if err := h.minio.RemoveObject(ctx, h.bucketName, objectName, minio.RemoveObjectOptions{}); err != nil {
-		log.Printf("MinIO delete error: %v", err)
-		// kamu bisa pilih: lanjut hapus DB juga, atau rollback, sesuai kebijakan
-		respondError(w, http.StatusInternalServerError, "Failed to delete object from storage: "+err.Error())
+	// if err := h.minio.RemoveObject(ctx, h.bucketName, objectName, minio.RemoveObjectOptions{}); err != nil {
+	// 	log.Printf("MinIO delete error: %v", err)
+	// 	// kamu bisa pilih: lanjut hapus DB juga, atau rollback, sesuai kebijakan
+	// 	respondError(w, http.StatusInternalServerError, "Failed to delete object from storage: "+err.Error())
+	// 	return
+	// }
+
+	if err := h.minio.RemoveObject(
+		ctx,
+		h.bucketName,
+		objectName,
+		minio.RemoveObjectOptions{},
+	); err != nil {
+		log.Printf("MinIO RemoveObject error: %v", err)
+		respondError(w, http.StatusInternalServerError, "Failed to delete file from storage: "+err.Error())
 		return
 	}
+	log.Printf("File deleted from MinIO: %s", objectName)
 
 	// 3. Hapus metadata di database
 	if err := h.repo.Delete(ctx, methodID); err != nil {
