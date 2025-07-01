@@ -87,6 +87,12 @@ services:
     environment:
       - APP_ENV=development
       - PORT=8081
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=Rafi111703
+      - DB_NAME=bismillahta
+
     env_file:
       - ./.env
     ports:
@@ -110,6 +116,12 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
     ports:
       - "8001:8000"
+    environment:
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=Rafi111703
+      - DB_NAME=bismillahta
     depends_on:
       - go_gateway
       - mariadb
@@ -125,6 +137,12 @@ services:
     container_name: rabbit_consumer
     restart: unless-stopped
     command: python -m app.rabbit_consumer
+    environment:
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=Rafi111703
+      - DB_NAME=bismillahta
     env_file:
       - ./.env
     depends_on:
@@ -139,6 +157,12 @@ services:
       context: ./backend-localization-py
     container_name: celery_worker
     restart: unless-stopped
+    environment:
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=Rafi111703
+      - DB_NAME=bismillahta
     env_file:
       - ./.env
     depends_on:

@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
 import json
+import traceback
 from uuid import uuid4
 from celery import Celery
 from .setup_celery import celery
-from .db import get_connection
+from .db import get_connection, transaction, get_db_connection
 from .minio_helper import get_object
 from .setup_redis import redis_client
 import logging
@@ -11,13 +12,7 @@ from dotenv import load_dotenv
 import os
 from python.localize import run_localization
 import pymysql.cursors
-# ________________________________________
-# Test endpoint variables
-# ________________________________________
-import random
-import time
-# ________________________________________
-
+import tempfile
 
 
 load_dotenv()
@@ -32,7 +27,7 @@ NOTIFY_CHANNEL_BASE = os.getenv("NOTIFY_CHANNEL_BASE", "lok_notify")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", 3600))  # Default to 1 hour
 MINIO_BUCKET_NAME = os.getenv("MINIO_BUCKET_NAME", "bismillahta")
 
-def cache_status(job_id: str, status: str, x: float = None, y: float = None): # type: ignore
+def cache_status(job_id: str, status: str, x: float = None, y: float = None, error: str = None): # type: ignore
     """
     Cache the status of a localization job in Redis.
 
@@ -49,21 +44,15 @@ def cache_status(job_id: str, status: str, x: float = None, y: float = None): # 
     }
     if x is not None and y is not None:
         payload.update({"hasil_x": x, "hasil_y": y})  # type: ignore
+    if error is not None:
+        payload["error"] =  error
     try:
         redis_client.hset(key, mapping=payload)
         redis_client.expire(key, CACHE_TTL_SECONDS)  # Set TTL for the key
     except Exception as e:
         logger.error(f"Error caching status for job {job_id}: {e}")
 
-# def notify_pubsub(job_id: str, status: str, x: float = None, y: float = None): # type: ignore
-#     """Notify job status via Redis Pub/Sub."""
-#     msg = {
-#         "job_id": job_id,
-#         "status": status,
-#         "timestamp": datetime.now(timezone.utc).isoformat()}
-#     redis_client.publish("lok_notify", json.dumps(msg))
-
-def notify_pubsub(job_id: str, status: str, x: float = None, y: float = None): # type: ignore
+def notify_pubsub(job_id: str, status: str, x: float = None, y: float = None, error: str = None): # type: ignore
     """
     Notify job status via Redis Pub/Sub.
     Args:
@@ -80,6 +69,8 @@ def notify_pubsub(job_id: str, status: str, x: float = None, y: float = None): #
     }
     if x is not None and y is not None:
         msg.update({"hasil_x": x, "hasil_y": y}) # type: ignore
+    if error is not None:
+        msg["error"] = error
     try:
         redis_client.publish(channel, json.dumps(msg))
         logger.info(f"Published message to {channel}: {msg}")
@@ -88,43 +79,58 @@ def notify_pubsub(job_id: str, status: str, x: float = None, y: float = None): #
         # Handle the error (e.g., retry, log, etc.)
 
 
-@celery.task(bind=True)
+@celery.task(bind=True, max_retries=3, default_retry_delay=60)
 def localize_task(self, job_id: str):
     logger.info(f"Starting localization task for job {job_id}")
-    conn = get_connection()
     try:
-        # —————————————————————————
-        # Update status→ RUNNING
-        # —————————————————————————
-        with conn.cursor() as cur:
-            cur.execute(
-                "UPDATE lokalisasi_jobs SET status=%s WHERE id=%s",
-                ("running", job_id)
-            )
-        conn.commit()
+        # ———————————————— UPDATE STATUS —————————————————————————
+        with transaction() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT status FROM lokalisasi_jobs WHERE id=%s FOR UPDATE",
+                    (job_id,)
+                )
+                job = cur.fetchone()
+                if not job:
+                    raise ValueError(f"Job {job_id} tidak ditemukan")
+                if job['status'] == 'queued':
+                    raise ValueError(f"Job {job_id} is already queued")
+                if job['status'] != 'queued':
+                    logger.warning(f"Job {job_id} status is {job['status']}, not queued. Skipping.")
+                    return {"status": "skipped", "reason": f"Job already {job['status']}"}
+                if job['status'] == 'running':
+                    raise ValueError(f"Job {job_id} is already running")
+                if job['status'] == 'done':
+                    raise ValueError(f"Job {job_id} is already done")
+                
+                
+                cur.execute(
+                    "UPDATE lokalisasi_jobs SET status=%s, updated_at=%s WHERE id=%s",
+                    ("running", datetime.now(), job_id)
+                )
+        
         cache_status(job_id, "running")
         notify_pubsub(job_id, "running")
+        logger.info(f"Job {job_id} status updated to 'running'")
 
-        # —————————————————————————
-        # Ambil metadata file dari DB
-        # —————————————————————————
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT
-                lj.id_data,
-                lj.id_metode,
-                lj.id_ruangan,
-                dc.object_path AS data_path,
-                ml.path_file AS model_path
-                FROM lokalisasi_jobs lj
-                JOIN data_csv dc
-                ON lj.id_data = dc.id
-                JOIN metodelokalisasi ml
-                ON lj.id_metode = ml.id
-                WHERE lj.id = %s
-            """, (job_id,))
-            row = cur.fetchone()
-            
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT
+                    lj.id_data,
+                    lj.id_metode,
+                                lj.id_ruangan,
+                                dc.object_path AS data_path,
+                                ml.path_file AS model_path
+                                FROM lokalisasi_jobs lj
+                                JOIN data_csv dc
+                                ON lj.id_data = dc.id
+                                JOIN metodelokalisasi ml
+                                ON lj.id_metode = ml.id
+                                WHERE lj.id = %s
+                            """, (job_id,))
+        row = cur.fetchone()
+
         if not row:
             raise ValueError(f"Job {job_id} tidak ditemukan")
 
@@ -133,58 +139,103 @@ def localize_task(self, job_id: str):
         ruangan_id = row['id_ruangan']
         data_path  = row['data_path']   # misal "Data-Parameter/spotfile3.csv"
         model_path = row['model_path']  # misal "Models/lok_v1.pkl"
+        
         # —————————————————————————
         # Download CSV & model
         # —————————————————————————
-        csv_bytes   = get_object(MINIO_BUCKET_NAME, data_path)
-        model_bytes = get_object(MINIO_BUCKET_NAME, model_path)
+        try:
+            csv_bytes   = get_object(MINIO_BUCKET_NAME, data_path)
+            model_bytes = get_object(MINIO_BUCKET_NAME, model_path)
+            logger.info(f"Job {job_id}: downloaded {len(csv_bytes)}B CSV, {len(model_bytes)}B model")
 
-        logger.info("Job %s: downloaded %dB CSV, %dB model", job_id, len(csv_bytes), len(model_bytes))
+        except Exception as e:
+            logger.error("Job %s: failed to download files: %s", job_id, e)
+            raise
 
-        time.sleep(20 + random.random() * 20)   # delay 20–40 detik
-        x = round(random.uniform(0, 10), 3)
-        y = round(random.uniform(0, 10), 3)
-        logger.info("Job %s: simulated result x=%s, y=%s", job_id, x, y)
+        try:
+            csv_file_path = None
+            model_file_path = None
+            with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as csv_file:
+                csv_file.write(csv_bytes)
+                csv_file_path = csv_file.name
+            
+            with tempfile.NamedTemporaryFile(suffix=".pkl", delete=False) as model_file:
+                model_file.write(model_bytes)
+                model_file_path = model_file.name
+
+            result = run_localization(
+                csv_file_path,
+                model_file_path
+            )
+            x, y = result['x'], result['y'] # type: ignore
+
+            logger.info(f"Job {job_id}: localization result: x={x}, y={y}")
+        
+        except Exception as e:
+            logger.error("Job %s: localization failed: %s", job_id, e)
+            # —————————————————————————
+            # On error → status FAILED
+            # —————————————————————————
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE lokalisasi_jobs SET status=%s, updated_at=%s WHERE id=%s",
+                    ("failed", datetime.now(timezone.utc), job_id)
+                )
+            conn.commit()
+            cache_status(job_id, "failed", error=str(e))
+        finally:
+            # Clean up temporary files
+            try :
+                if csv_file_path: # type: ignore
+                    os.remove(csv_file_path)
+                if model_file_path: # type: ignore
+                    os.remove(model_file_path)
+            except Exception as cleanup_error:
+                logger.error(f"Error cleaning up temporary files for job {job_id}: {cleanup_error}")
+            logger.info(f"Temporary files cleaned up for job {job_id}")
 
         # —————————————————————————
-        # Simpan hasil ke tabel hasil_lokalisasi
+        # Insert hasil_lokalisasi
         # —————————————————————————
-        hasil_id = uuid4().hex
-        with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO hasil_lokalisasi "
-                "(id, hasil_x, hasil_y, id_data, id_metode, id_ruangan) "
-                "VALUES (%s,%s,%s,%s,%s,%s)",
-                (hasil_id, x, y, data_id, metode_id, ruangan_id)
-            )
-            # Update job jadi DONE + FK ke hasil
-            cur.execute(
-                "UPDATE lokalisasi_jobs "
-                "SET status=%s, updated_at=%s "
-                "WHERE id=%s",
-                ("done", datetime.now(), job_id)
-            )
-        conn.commit()
-        cache_status(job_id, "done", x, y)
-        notify_pubsub(job_id, "done", x, y)
-        logger.info(f"Localization task for job {job_id} completed successfully")
+        hasil_id = str(uuid4())  # Generate a new UUID for the result
+        with transaction() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO hasil_lokalisasi "
+                    "(id, hasil_x, hasil_y, id_data, id_metode, id_ruangan, job_id, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+                    (hasil_id, x, y, data_id, metode_id, ruangan_id, job_id, datetime.now()) # type: ignore
+                )
 
-        return {"x": x, "y": y}
+                cur.execute(
+                    "UPDATE lokalisasi_jobs SET status=%s, updated_at=%s WHERE id=%s",
+                    ("done", datetime.now(timezone.utc), job_id)
+                )
 
+            conn.commit()
+        cache_status(job_id, "done", x=x, y=y) # type: ignore
+        notify_pubsub(job_id, "done", x=x, y=y) # type: ignore
+        logger.info(f"Job {job_id} completed successfully with result: x={x}, y={y}") # type: ignore
+        return {
+            "status": "done",
+            "hasil_x": x,   # type: ignore
+            "hasil_y": y,   # type: ignore
+            "job_id": job_id
+        }
+    
     except Exception as e:
-        logger.error(f"Error occurred during localization task for job {job_id}: {e}")
-        # —————————————————————————
-        # On error → status FAILED
-        # —————————————————————————
-        with conn.cursor() as cur:
-            cur.execute(
-                "UPDATE lokalisasi_jobs SET status=%s, updated_at=%s WHERE id=%s",
-                ("failed", datetime.now(timezone.utc), job_id)
-            )
-        conn.commit()
-        cache_status(job_id, "failed")
-        notify_pubsub(job_id, "failed")
-        raise
+        error_msg = f"{type(e).__name__}: {str(e)}"
+        logger.error(f"Error in localization task for job {job_id}: {error_msg}\n{traceback.format_exc()}")
 
-    finally:
-        conn.close()
+        try :
+            with transaction() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE lokalisasi_jobs SET status=%s, updated_at=%s WHERE id=%s",
+                        ("failed", datetime.now(timezone.utc), job_id)
+                    )
+            cache_status(job_id, "failed", error=error_msg)
+            notify_pubsub(job_id, "failed", error=error_msg)
+            logger.info(f"Job {job_id} status updated to 'failed'")
+        except Exception as db_error:
+            logger.error(f"Failed to update job {job_id} status in database: {db_error}")
