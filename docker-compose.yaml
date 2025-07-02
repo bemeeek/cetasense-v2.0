@@ -4,7 +4,7 @@ services:
     image: nginx:stable-alpine
     container_name: lb_nginx
     ports:
-      - "80:80"             # expose port 80 ke host
+      - "80:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -16,10 +16,7 @@ services:
   mariadb:
     image: mariadb:latest
     container_name: mariadb
-    restart: unless-stopped           # ← tambahkan ini
-    environment:
-      MYSQL_ROOT_PASSWORD: Rafi111703
-      MYSQL_DATABASE: bismillahta
+    restart: unless-stopped
     volumes:
       - mariadb_data:/var/lib/mysql
     ports:
@@ -30,12 +27,12 @@ services:
   minio:
     image: minio/minio:latest
     container_name: minio
-    restart: unless-stopped           # opsional, supaya MinIO juga auto-restart
+    restart: unless-stopped
     environment:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: password
     volumes:
-      - ./tools/minio_data:/data
+      - minio_data:/data
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -51,13 +48,13 @@ services:
       - redis_data:/data
     ports:
       - "6379:6379"
-    networks:
-      - app-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - app-network
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -71,19 +68,21 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
-    networks:
-      - app-network
     healthcheck:
       test: ["CMD", "rabbitmqctl", "status"]
       interval: 15s
       timeout: 5s
       retries: 5
+    networks:
+      - app-network
 
   go_gateway:
     build:
       context: ./backend
     container_name: go_gateway
     restart: on-failure
+    env_file:
+      - ./.env
     environment:
       - APP_ENV=development
       - PORT=8081
@@ -92,9 +91,6 @@ services:
       - DB_USER=root
       - DB_PASSWORD=Rafi111703
       - DB_NAME=bismillahta
-
-    env_file:
-      - ./.env
     ports:
       - "8081:8081"
     depends_on:
@@ -113,15 +109,15 @@ services:
     restart: unless-stopped
     env_file:
       - ./.env
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
-    ports:
-      - "8001:8000"
     environment:
       - DB_HOST=mariadb
       - DB_PORT=3306
       - DB_USER=root
       - DB_PASSWORD=Rafi111703
       - DB_NAME=bismillahta
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    ports:
+      - "8001:8000"
     depends_on:
       - go_gateway
       - mariadb
@@ -136,15 +132,15 @@ services:
       context: ./backend-localization-py
     container_name: rabbit_consumer
     restart: unless-stopped
-    command: python -m app.rabbit_consumer
+    env_file:
+      - ./.env
     environment:
       - DB_HOST=mariadb
       - DB_PORT=3306
       - DB_USER=root
       - DB_PASSWORD=Rafi111703
       - DB_NAME=bismillahta
-    env_file:
-      - ./.env
+    command: python -m app.rabbit_consumer
     depends_on:
       - rabbitmq
       - redis
@@ -157,20 +153,20 @@ services:
       context: ./backend-localization-py
     container_name: celery_worker
     restart: unless-stopped
+    env_file:
+      - ./.env
     environment:
       - DB_HOST=mariadb
       - DB_PORT=3306
       - DB_USER=root
       - DB_PASSWORD=Rafi111703
       - DB_NAME=bismillahta
-    env_file:
-      - ./.env
+    command: celery -A app.tasks worker --loglevel=info --pool=prefork --concurrency=4
     depends_on:
       - rabbitmq
       - redis
       - mariadb
       - minio
-    command: celery -A app.tasks worker --loglevel=info --pool=prefork --concurrency=4
     networks:
       - app-network
 
@@ -187,6 +183,3 @@ volumes:
     driver: local
   rabbitmq_data:
     driver: local
-  nginx_data:
-    driver: local
-  

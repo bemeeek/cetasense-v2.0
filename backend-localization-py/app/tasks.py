@@ -93,17 +93,13 @@ def localize_task(self, job_id: str):
                 job = cur.fetchone()
                 if not job:
                     raise ValueError(f"Job {job_id} tidak ditemukan")
-                if job['status'] == 'queued':
-                    raise ValueError(f"Job {job_id} is already queued")
+                
                 if job['status'] != 'queued':
-                    logger.warning(f"Job {job_id} status is {job['status']}, not queued. Skipping.")
-                    return {"status": "skipped", "reason": f"Job already {job['status']}"}
-                if job['status'] == 'running':
-                    raise ValueError(f"Job {job_id} is already running")
-                if job['status'] == 'done':
-                    raise ValueError(f"Job {job_id} is already done")
-                
-                
+                    logger.warning(f"Job {job_id} is not in 'queued' status, current status: {job['status']}")
+                    return {
+                        "status": job['status'],
+                        "message": f"Job {job_id} is already in status '{job['status']}'"
+                    }
                 cur.execute(
                     "UPDATE lokalisasi_jobs SET status=%s, updated_at=%s WHERE id=%s",
                     ("running", datetime.now(), job_id)
