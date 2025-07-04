@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { v4 as uuidv4 } from 'uuid';
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api',
@@ -172,6 +171,8 @@ export const deleteMethod = async (method_id: string): Promise<void> => {
  * Buka koneksi SSE ke Go-gateway untuk job_id tertentu.
  * Harus dipanggil sebelum localize() sehingga subscriber sudah siap
  */
+
+
 
 export function listenLocalizationResult(
   job_id: string,

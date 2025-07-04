@@ -5,7 +5,7 @@ import RoomPage from "./pages/RoomSettingPage";
 import MethodSettingPage from "./pages/MethodsSettingPage";
 import PlotDataPage from "./pages/PlotDataPage";
 import LocalizationPage from "./pages/LocalizationPage";
-// import UploadPage from "./pages/MethodsSettingPage";
+import ComparisonPage from "./pages/ComparisonPage";
 
 function App() {
     return (
@@ -23,6 +23,7 @@ function App() {
                 <Route path="data-stream">
                     <Route path="lokalisasi" element={<LocalizationPage />} />
                     <Route path="plot-data" element={<PlotDataPage />} />
+                    <Route path="perbandingan" element={<ComparisonPage />} />
                     <Route index element={<Navigate to="lokalisasi" replace />} />
                 </Route>
             </Routes>

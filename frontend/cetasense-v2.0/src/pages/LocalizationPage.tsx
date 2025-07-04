@@ -23,7 +23,7 @@ export const LocalizationPage: React.FC = () => {
   const [selData, setSelData] = useState('');
   const [selRuangan, setSelRuangan] = useState('');
   const [selMethod, setSelMethod] = useState('');
-  const [jobId, setJobId] = useState<string | null>(null);
+  // Removed unused jobId state
   const [jobStatus, setJobStatus] = useState<string | null>(null);
   const [result, setResult] = useState<{ x: number; y: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +59,6 @@ export const LocalizationPage: React.FC = () => {
 
     try {
       const { job_id, status } = await localize(selData, selMethod, selRuangan);
-      setJobId(job_id);
       setJobStatus(status);
       listenForResults(job_id);
     } catch {

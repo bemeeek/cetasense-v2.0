@@ -49,6 +49,10 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 	// 2) parse CSV → [][]float64 with shape [nPackets][3*30]
 	reader := csv.NewReader(obj)
 	var data [][]float64
+	if _, err := reader.Read(); err != nil {
+		respondError(w, http.StatusInternalServerError, "Parse CSV header: "+err.Error())
+		return
+	}
 	for {
 		row, err := reader.Read()
 		if err == io.EOF {
@@ -78,7 +82,7 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 			avgAll[ant][s] = sum / float64(n)
 		}
 	}
-	// 4) meanAnt1 per-subcarrier
+	// 4) mean per antenna per-subcarrier
 	meanAnt1 := avgAll[0]
 	meanAnt2 := avgAll[1]
 	meanAnt3 := avgAll[2]

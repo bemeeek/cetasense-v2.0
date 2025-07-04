@@ -4,7 +4,7 @@ import { NavLink } from 'react-router-dom';
 const tabs = [
   { name: 'Plot Data', path: '/data-stream/plot-data' },
   { name: 'Sistem Pemosisian', path: '/data-stream/lokalisasi' },
-  { name: 'Perbandingan Pemosisian', path: '/data-stream/perbandingan-pemosisian' },
+  { name: 'Perbandingan Pemosisian', path: '/data-stream/perbandingan' },
 ];
 
 export const TabSwitcherData: React.FC = () => {

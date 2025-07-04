@@ -80,7 +80,7 @@ const PlotPage: React.FC = () => {
           <div className="flex flex-row h-10 gap-4 mb-4">
             <Select
               value={selected ? selected.id : ""}
-              placeholder="Select a CSI file"
+              placeholder="Pilih file CSI"
               options={files.map((f) => ({ value: f.id, label: f.file_name }))}
               onChange={(value) =>
                 setSelected(files.find((f) => f.id === value) || null)
