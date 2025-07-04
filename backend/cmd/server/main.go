@@ -24,11 +24,44 @@ import (
 	"github.com/rs/cors"
 )
 
-// func init() {
-// 	if err := godotenv.Load("../../.env"); err != nil {
-// 		log.Println("No .env file found, relying on environment variables")
-// 	}
-// }
+// Test Redis connection dengan detailed logging
+func testRedisConnection(rdb *redis.Client) {
+	ctx := context.Background()
+
+	// Test ping
+	if err := rdb.Ping(ctx).Err(); err != nil {
+		log.Printf("❌ Go Redis ping failed: %v", err)
+		return
+	}
+	log.Println("✅ Go Redis connected successfully")
+
+	// Test subscribe to test channel
+	sub := rdb.Subscribe(ctx, "test_channel")
+	defer sub.Close()
+
+	// Wait for subscription confirmation
+	if _, err := sub.Receive(ctx); err != nil {
+		log.Printf("❌ Failed to subscribe to test channel: %v", err)
+		return
+	}
+	log.Println("✅ Test subscription successful")
+
+	ch := sub.Channel()
+
+	// Test publish
+	testMsg := `{"test":"connection","timestamp":"` + time.Now().Format(time.RFC3339) + `"}`
+	result := rdb.Publish(ctx, "test_channel", testMsg)
+	log.Printf("📡 Published test message, subscribers: %d", result.Val())
+
+	// Listen for 3 seconds
+	timeout := time.After(3 * time.Second)
+	select {
+	case msg := <-ch:
+		log.Printf("✅ Go received test message: %s", msg.Payload)
+	case <-timeout:
+		log.Println("⏰ Go test subscription timeout (this is normal)")
+	}
+}
 
 func main() {
 	// ─── 1) Load config ────────────────────────────────────────────────────
@@ -55,20 +88,28 @@ func main() {
 	}
 
 	// ─── 4) Initialize Redis ──────────────────────────────────────────────
+	redisAddr := fmt.Sprintf("%s:%s", cfg.RedisHost, cfg.RedisPort)
+	log.Printf("🔗 Connecting to Redis at %s, DB %d", redisAddr, cfg.RedisDB)
+
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", cfg.RedisHost, cfg.RedisPort),
+		Addr:     redisAddr,
 		Password: "",          // No password set
 		DB:       cfg.RedisDB, // Use default DB
 	})
+
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
+	log.Println("✅ Redis connection established")
+
+	// Test Redis connection
+	testRedisConnection(rdb)
+
 	// Ensure Redis connection is closed on exit
 	defer func() {
 		if err := rdb.Close(); err != nil {
 			log.Printf("Error closing Redis connection: %v", err)
 		}
-		defer rdb.Close()
 	}()
 
 	// ─── 5) Repositories & Handlers ───────────────────────────────────────
@@ -85,7 +126,7 @@ func main() {
 	uploadHandler := handlers.NewUploadHandler(csvRepo, minioClient, cfg.MinioBucket, cfg, ruanganRepo, filterRepo)
 	batchHandler := handlers.NewBatchHandler(dataRepo)
 	methodHandler := handlers.NewMethodsHandler(methodRepo, minioClient, cfg.MinioBucket, cfg)
-	heatmapHandler := handlers.NewHeatmapHandler(csvRepo, minioClient, cfg.MinioBucket, cfg)
+	plotHandler := handlers.NewPlotHandler(csvRepo, minioClient, cfg.MinioBucket)
 
 	// ─── 6) Router & Middleware ──────────────────────────────────────────
 	router := mux.NewRouter()
@@ -97,7 +138,8 @@ func main() {
 	routes.RegisterUploadRoutes(router, uploadHandler)
 	routes.RegisterBatchRoutes(router, batchHandler)
 	routes.RegisterMethodsRoutes(router, methodHandler)
-	routes.RegisterHeatmapRoutes(router, heatmapHandler)
+	routes.RegisterPlotRoutes(router, plotHandler)
+
 	// SSE routes
 	router.HandleFunc("/api/localize", handlers.NewLocalizeHandler(cfg)).
 		Methods("POST")
@@ -108,24 +150,41 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "OK")
 	})
-	addr := ":8081"
-	log.Printf("Gateway listening on %s", addr)
+
+	// Test di main.go
+	log.Printf("LocalizationHandler function: %v", handlers.LocalizationHandler)
+
+	// Di main.go setelah semua routes
+	log.Println("🚀 Registered routes:")
+	router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		pathTemplate, err := route.GetPathTemplate()
+		if err == nil {
+			methods, _ := route.GetMethods()
+			log.Printf("   %s %v", pathTemplate, methods)
+		}
+		return nil
+	})
 
 	// Global middleware
 	router.Use(loggingMiddleware, contentTypeMiddleware)
 
 	// CORS
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"},
+		AllowedOrigins:   []string{"http://localhost:5173", "*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization", "Cache-Control"},
 		AllowCredentials: true,
 	})
 	handler := c.Handler(router)
 
 	// ─── 7) HTTP Server & Graceful Shutdown ──────────────────────────────
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8081"
+	}
+
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%s", os.Getenv("PORT")),
+		Addr:         fmt.Sprintf(":%s", port),
 		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
@@ -134,7 +193,7 @@ func main() {
 
 	// Run server
 	go func() {
-		log.Printf("Server started on %s", srv.Addr)
+		log.Printf("🚀 Server started on %s", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)
 		}
@@ -157,14 +216,19 @@ func main() {
 // ─── Middleware ─────────────────────────────────────────────────────────
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("%s %s %s", r.RemoteAddr, r.Method, r.URL)
+		start := time.Now()
+		log.Printf("📥 %s %s %s", r.RemoteAddr, r.Method, r.URL)
 		next.ServeHTTP(w, r)
+		log.Printf("📤 %s %s %s - %v", r.RemoteAddr, r.Method, r.URL, time.Since(start))
 	})
 }
 
 func contentTypeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+		// Jika handler men‐set content‐type lain (misal text/event-stream), jangan timpa
+		if w.Header().Get("Content-Type") == "" {
+			w.Header().Set("Content-Type", "application/json")
+		}
 		next.ServeHTTP(w, r)
 	})
 }

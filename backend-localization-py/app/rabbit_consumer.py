@@ -2,7 +2,8 @@ import os, json
 import pika
 from app.db import get_connection, transaction, with_db_retry
 from .tasks import localize_task
-from datetime import datetime, time
+import time
+from datetime import datetime
 from .models import LocalizeRequest
 from pydantic import ValidationError
 import logging
@@ -13,7 +14,7 @@ import sys
 logger = logging.getLogger(__name__)
 
 # RABBIT_URL = os.getenv("amqp://guest:guest@localhost:5672//")
-QUEUE_NAME = os.getenv("RABBITMQ_QUEUE_NAME")
+QUEUE_NAME = os.getenv("RABBITMQ_QUEUE_NAME", "lok_requests")  # Default to 'lok_requests' if not set
 
 class RabbitMQConsumer:
     def __init__(self):

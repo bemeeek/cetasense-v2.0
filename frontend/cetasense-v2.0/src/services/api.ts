@@ -1,199 +1,200 @@
 import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
 
 export const api = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api',
-    headers: {
-        'Content-Type': 'application/json',
-    },
-    timeout: 10000, // 10 seconds timeout
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 10000,
 });
 
+// ————————————————————————————————————————————————————————————————
+// Data types
+// ————————————————————————————————————————————————————————————————
+
 export interface Ruangan {
-    id: string;
-    nama_ruangan: string;
-    panjang: number;
-    lebar: number;
-    posisi_x_tx: number;
-    posisi_y_tx: number;
-    posisi_x_rx: number;
-    posisi_y_rx: number;
+  id: string;
+  nama_ruangan: string;
+  panjang: number;
+  lebar: number;
+  posisi_x_tx: number;
+  posisi_y_tx: number;
+  posisi_x_rx: number;
+  posisi_y_rx: number;
 }
 
 export interface RuanganCreate {
-    nama_ruangan: string;
-    panjang: number;
-    lebar: number;
-    posisi_x_tx: number;
-    posisi_y_tx: number;
-    posisi_x_rx: number;
-    posisi_y_rx: number;
+  nama_ruangan: string;
+  panjang: number;
+  lebar: number;
+  posisi_x_tx: number;
+  posisi_y_tx: number;
+  posisi_x_rx: number;
+  posisi_y_rx: number;
 }
+
 export interface Filter {
-    id: string;
-    nama_filter: string;
-    description: string;
+  id: string;
+  nama_filter: string;
+  description: string;
 }
 
 export interface Data {
-    amplitude: number[];
-    phase: number[];
-    rssi: number[];
-    timestamp: string[];
-    batchID: number;  // Changed batchID to number for consistency
-    ruanganID: string;
-    filterID: string;
+  amplitude: number[];
+  phase: number[];
+  rssi: number[];
+  timestamp: string[];
+  batchID: number;
+  ruanganID: string;
+  filterID: string;
 }
 
 export interface CSIFileMeta {
-    id: string;
-    file_name: string;
-    object_path: string;
-    created_at: string;
-    ruangan_id : string;
-    filter_id : string;
-    nama_ruangan: string;
-    nama_filter: string;
+  id: string;
+  file_name: string;
+  object_path: string;
+  created_at: string;
+  ruangan_id: string;
+  filter_id: string;
+  nama_ruangan: string;
+  nama_filter: string;
 }
 
 export interface Methods {
-    method_id: string;
-    method_name: string;
-    filetype: 'script' | 'model';
-    object_path: string;
+  method_id: string;
+  method_name: string;
+  filetype: 'script' | 'model';
+  object_path: string;
 }
 
+// Response tipe untuk enqueue lokalizasi
 export interface LocalizatioResponse {
-    job_id: string;
-    status : 'queued' | 'running' | 'done';
+  job_id: string;
+  status: 'queued' | 'running' | 'done';
 }
 
+// Response tipe untuk update SSE
 export interface StatusResponse {
-    status: 'queued' | 'running' | 'done' | 'failed';
-    hasil_x?: number;
-    hasil_y?: number;
+  status: 'queued' | 'running' | 'done' | 'failed';
+  hasil_x?: number;
+  hasil_y?: number;
 }
 
+// ————————————————————————————————————————————————————————————————
+// CRUD / utility lain (tetap sama seperti sebelum)
+// ————————————————————————————————————————————————————————————————
 
 export const fetchCSIFileMeta = async (): Promise<CSIFileMeta[]> => {
-    try {
-        const resp = await api.get<CSIFileMeta[]>('/uploads');
-        return resp.data;
-    } catch (err: any) {
-        // Kalau 404, return empty array
-        if (err.response?.status === 404) {
-        return [];
-        }
-        throw err;
-    }
-}
+  try {
+    const resp = await api.get<CSIFileMeta[]>('/uploads');
+    return resp.data;
+  } catch (err: any) {
+    if (err.response?.status === 404) return [];
+    throw err;
+  }
+};
 
 export const deleteUpload = async (id: string): Promise<void> => {
   await api.delete(`/uploads/${id}`);
 };
 
 export const fetchRuangan = async (): Promise<Ruangan[]> => {
-    try {
-        const response = await api.get<Ruangan[]>('/ruangan');
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching Ruangan:", error);
-        throw new Error("Failed to fetch Ruangan.");
-    }
-}
-
-export const renameUpload = async (id: string, new_name: string): Promise<CSIFileMeta> => {
-  const resp = await api.put<CSIFileMeta>(`/uploads/${id}`, { new_name });  // Menggunakan `new_name` untuk parameter
+  const resp = await api.get<Ruangan[]>('/ruangan');
   return resp.data;
 };
 
+export const renameUpload = async (id: string, new_name: string): Promise<CSIFileMeta> => {
+  const resp = await api.put<CSIFileMeta>(`/uploads/${id}`, { new_name });  // Menggunakan new_name untuk parameter
+  return resp.data;
+};
+
+
 export const fetchRoom = () => api.get<Ruangan[]>('/ruangan');
+
 export const createRoom = (room: RuanganCreate) =>
-  api.post<RuanganCreate>('/ruangan', room)
-export const updateRoom = (room: Ruangan) => api.put<Ruangan>(`/ruangan/${room.id}`, room);
+  api.post<RuanganCreate>('/ruangan', room);
+
+export const updateRoom = (room: Ruangan) =>
+  api.put<Ruangan>(`/ruangan/${room.id}`, room);
+
 export const deleteRoom = (id: string) => api.delete(`/ruangan/${id}`);
 
 export const fetchFilter = async (): Promise<Filter[]> => {
-    try {
-        const response = await api.get<Filter[]>('/filter');
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching Filter:", error);
-        throw new Error("Failed to fetch Filter.");
-    }
-}
-
-export const uploadCSV = async (
-    file: File,
-    nama_ruangan: string,
-    nama_filter: string
-): Promise<any> => {
-    const formData = new FormData();
-    formData.append('csv_file', file);
-    formData.append('nama_ruangan', nama_ruangan);
-    formData.append('nama_filter', nama_filter);
-    return await api.post('/upload', formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data',
-        },
-    });
-}
-
-export const uploadMethod = async (
-    file: File,
-    nama_metode : string,
-    tipe_metode : 'script' | 'model'
-): Promise<any> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('nama_metode', nama_metode);
-    formData.append('tipe_metode', tipe_metode);
-    const resp = await api.post('/methods', formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data',
-        },
-    });
-    return resp.data;
-}
-
-export const fetchMethods = async (): Promise<Methods[]> => {
-  const response = await api.get<Methods[]>('/methods');
-  return response.data;
-}
-
-export const deleteMethod = async (method_id: string): Promise<void> => {
-    try {
-        await api.delete(`/methods/${method_id}`);
-    } catch (error) {
-        console.error("Error deleting Method:", error);
-        throw new Error("Failed to delete Method.");
-    }
-}
-
-export const localize = async (
-    data_id : string,
-    method_id : string,
-    ruangan_id : string,
-) : Promise<LocalizatioResponse> => {
-    const resp = await api.post<LocalizatioResponse>('/localize', {
-        id_data: data_id,
-        id_metode: method_id,
-        id_ruangan: ruangan_id,
-    });
-    return resp.data;
-}
-
-
-export const listenLocalizationResult = (
-  job_id: string,
-  onMessage: (data: StatusResponse) => void
-): EventSource => {
-  // PASTIKAN URL ini mengarah ke backend Go, bukan ke port Vite (5173)
-  const es = new EventSource(`http://localhost:8081/api/localize/stream/${job_id}`);
-  es.onmessage = e => onMessage(JSON.parse(e.data));
-  return es;
+  const resp = await api.get<Filter[]>('/filter');
+  return resp.data;
 };
 
-export const getStatus = async (job_id: string): Promise<StatusResponse> => {
-    const resp = await api.get<StatusResponse>(`/localize/${job_id}/status`);
-    return resp.data;
+export const uploadCSV = async (
+  file: File,
+  nama_ruangan: string,
+  nama_filter: string
+): Promise<any> => {
+  const form = new FormData();
+  form.append('csv_file', file);
+  form.append('nama_ruangan', nama_ruangan);
+  form.append('nama_filter', nama_filter);
+  return api.post('/upload', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+
+export const uploadMethod = async (
+  file: File,
+  nama_metode: string,
+  tipe_metode: 'script' | 'model'
+): Promise<any> => {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('nama_metode', nama_metode);
+  form.append('tipe_metode', tipe_metode);
+  const resp = await api.post('/methods', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return resp.data;
+};
+
+export const fetchMethods = async (): Promise<Methods[]> => {
+  const resp = await api.get<Methods[]>('/methods');
+  return resp.data;
+};
+
+export const deleteMethod = async (method_id: string): Promise<void> => {
+  await api.delete(`/methods/${method_id}`);
+};
+
+// ————————————————————————————————————————————————————————————————
+// Bagian Lokalizasi (Diperbarui)
+// ————————————————————————————————————————————————————————————————
+
+/**
+ * Buka koneksi SSE ke Go-gateway untuk job_id tertentu.
+ * Harus dipanggil sebelum localize() sehingga subscriber sudah siap
+ */
+
+export function listenLocalizationResult(
+  job_id: string,
+  onMessage: (data: StatusResponse) => void
+): EventSource {
+  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api';
+  const url  = `${base}/localize/stream/${job_id}`;
+  const es   = new EventSource(url);
+  es.onmessage = e => onMessage(JSON.parse(e.data) as StatusResponse);
+  es.onerror   = () => es.close();
+  return es;
 }
+
+export async function localize(
+  data_id: string,
+  id_metode: string,
+  id_ruangan: string
+): Promise<LocalizatioResponse> {
+  const resp = await api.post<LocalizatioResponse>('/localize', {
+    id_data:    data_id,
+    id_metode:  id_metode,
+    id_ruangan: id_ruangan,
+  });
+  return resp.data;
+}
+

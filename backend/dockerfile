@@ -12,8 +12,16 @@ RUN go build -o gateway ./cmd/server/main.go
 
 # ===== STAGE 2: Runtime =====
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates \
-    && update-ca-certificates
+# Install certificates and timezone data
+RUN apk add --no-cache ca-certificates tzdata \
+    && update-ca-certificates \
+    # Set container timezone to Asia/Jakarta (WIB)
+    && cp /usr/share/zoneinfo/Asia/Jakarta /etc/localtime \
+    && echo "Asia/Jakarta" > /etc/timezone
+
+# Ensure Go logs use the correct timezone
+ENV TZ=Asia/Jakarta
+
 WORKDIR /root/
 COPY --from=builder /app/gateway ./
 COPY --from=builder /app/cmd/server/theta_scan.csv .

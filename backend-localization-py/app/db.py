@@ -16,11 +16,11 @@ logger = logging.getLogger(__name__)
 
 # Database configuration from environment
 DB_CONFIG = {
-    'host': os.getenv("DB_HOST"),
+    'host': os.getenv("DB_HOST", "127.0.0.1"),  # Default to localhost if not set
     'port': int(os.getenv("DB_PORT", 3307)),
-    'user': os.getenv("DB_USER"),
-    'password': os.getenv("DB_PASSWORD",""),
-    'database': os.getenv("DB_NAME"),
+    'user': os.getenv("DB_USER", "root"),
+    'password': os.getenv("DB_PASSWORD", "Rafi111703"),
+    'database': os.getenv("DB_NAME", "bismillahta"),
     'charset': 'utf8mb4',
     'cursorclass': pymysql.cursors.DictCursor,
     'autocommit': False

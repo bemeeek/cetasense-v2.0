@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import json
 import traceback
 from uuid import uuid4
+from typing import Dict, Any, Optional
 from celery import Celery
 from .setup_celery import celery
 from .db import get_connection, transaction, get_db_connection
@@ -14,7 +15,6 @@ from python.localize import run_localization
 import pymysql.cursors
 import tempfile
 
-
 load_dotenv()
 
 logger = logging.getLogger(__name__)
@@ -24,66 +24,124 @@ logging.basicConfig(
 )
 
 NOTIFY_CHANNEL_BASE = os.getenv("NOTIFY_CHANNEL_BASE", "lok_notify")
-CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", 3600))  # Default to 1 hour
+CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", 3600))
 MINIO_BUCKET_NAME = os.getenv("MINIO_BUCKET_NAME", "bismillahta")
 
-def cache_status(job_id: str, status: str, x: float = None, y: float = None, error: str = None): # type: ignore
-    """
-    Cache the status of a localization job in Redis.
+def test_redis_connection():
+    """Test Redis connection for debugging"""
+    try:
+        redis_client.ping()
+        logger.info("✅ Python Redis connected successfully")
+        
+        # Test publish
+        test_channel = "test_channel"
+        test_msg = {"test": "connection_test", "timestamp": datetime.now().isoformat()}
+        result = redis_client.publish(test_channel, json.dumps(test_msg))
+        logger.info(f"✅ Published test message to {test_channel}, subscribers: {result}")
+        
+    except Exception as e:
+        logger.error(f"❌ Python Redis error: {e}")
 
-    Args:
-        job_id (str): The unique identifier for the job.
-        status (str): The current status of the job (e.g., 'running', 'done', 'failed').
-        payload.update({"hasil_x": x, "hasil_y": y})
-        y (float, optional): The Y coordinate result, if available.
-    """
+def cache_status(job_id: str, status: str, x: Optional[float] = None, y: Optional[float] = None, error: Optional[str] = None) -> None:
+    """Cache the status of a localization job in Redis."""
     key = f"lok_status:{job_id}"
-    payload = {
-        "status":status,
-        "updated_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")  # Store the timestamp in ISO format
+    payload: Dict[str, Any] = {
+        "status": status,
+        "updated_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     }
+    
     if x is not None and y is not None:
-        payload.update({"hasil_x": x, "hasil_y": y})  # type: ignore
+        result_data: Dict[str, float] = {"hasil_x": x, "hasil_y": y}
+        payload.update(result_data)
+    
     if error is not None:
-        payload["error"] =  error
+        payload["error"] = error
+    
     try:
         redis_client.hset(key, mapping=payload)
-        redis_client.expire(key, CACHE_TTL_SECONDS)  # Set TTL for the key
+        redis_client.expire(key, CACHE_TTL_SECONDS)
+        logger.info(f"📦 Cached status for job {job_id}: {status}")
     except Exception as e:
-        logger.error(f"Error caching status for job {job_id}: {e}")
+        logger.error(f"❌ Error caching status for job {job_id}: {e}")
 
-def notify_pubsub(job_id: str, status: str, x: float = None, y: float = None, error: str = None): # type: ignore
-    """
-    Notify job status via Redis Pub/Sub.
-    Args:
-        job_id (str): The unique identifier for the job.
-        status (str): The current status of the job (e.g., 'running', 'done', 'failed').
-        x (float, optional): The X coordinate result, if available.
-        y (float, optional): The Y coordinate result, if available.
-    """
+# Di tasks.py, update function notify_pubsub
+import time
+
+def notify_pubsub(job_id: str, status: str, x: Optional[float] = None, y: Optional[float] = None, error: Optional[str] = None) -> None:
+    """Notify job status via Redis Pub/Sub with retry mechanism."""
     channel = f"{NOTIFY_CHANNEL_BASE}:{job_id}"
-    msg = {
+    msg: Dict[str, Any] = {
         "job_id": job_id,
         "status": status,
         "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     }
+    
     if x is not None and y is not None:
-        msg.update({"hasil_x": x, "hasil_y": y}) # type: ignore
+        result_data: Dict[str, float] = {"hasil_x": x, "hasil_y": y}
+        msg.update(result_data)
+    
     if error is not None:
         msg["error"] = error
+    
     try:
-        redis_client.publish(channel, json.dumps(msg))
-        logger.info(f"Published message to {channel}: {msg}")
+        # Check Redis connection first
+        redis_client.ping()
+        
+        # Retry mechanism untuk publish
+        max_retries = 5
+        retry_delay = 0.5  # 500ms
+        
+        for attempt in range(max_retries):
+            # Publish message
+            result = redis_client.publish(channel, json.dumps(msg))
+            logger.info(f"📡 [Attempt {attempt + 1}] Published to {channel}: {msg}")
+            logger.info(f"📊 Subscribers count: {result}")
+            
+            if result > 0:
+                logger.info(f"✅ Message delivered to {result} subscribers")
+                break
+            else:
+                if attempt < max_retries - 1:
+                    logger.warning(f"⚠️  No subscribers for {channel}, retrying in {retry_delay}s...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 1.5  # Exponential backoff
+                else:
+                    logger.warning(f"⚠️  Final attempt: No subscribers for {channel}")
+        
     except Exception as e:
-        logger.error(f"Error publishing message to {channel}: {e}")
-        # Handle the error (e.g., retry, log, etc.)
+        logger.error(f"❌ Error publishing to {channel}: {e}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+
+
+def wait_for_subscriber(job_id: str, timeout_s=10):
+    """Blocking wait until Go-gateway signals subscriber_ready."""
+    ps = redis_client.pubsub()
+    channel = f"subscriber_ready:{job_id}"
+    ps.subscribe(channel)
+    start = time.time()
+    while time.time() - start < timeout_s:
+        msg = ps.get_message(ignore_subscribe_messages=True, timeout=1.0)
+        if msg and msg['type'] == 'message':
+            return True
+    return False
 
 
 @celery.task(bind=True, max_retries=3, default_retry_delay=60)
-def localize_task(self, job_id: str):
-    logger.info(f"Starting localization task for job {job_id}")
+def localize_task(self, job_id: str) -> Dict[str, Any]:
+    logger.info(f"🚀 Starting localization task for job {job_id}")
+    
+    # Test Redis connection at start
+    test_redis_connection()
+
+    logger.info(f"⏳ Waiting 2 seconds for potential subscribers...")
+    time.sleep(2)
+    
+    # Inisialisasi variabel untuk cleanup
+    csv_file_path: Optional[str] = None
+    model_file_path: Optional[str] = None
+    
     try:
-        # ———————————————— UPDATE STATUS —————————————————————————
+        # ===== UPDATE STATUS TO RUNNING =====
         with transaction() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -107,131 +165,128 @@ def localize_task(self, job_id: str):
         
         cache_status(job_id, "running")
         notify_pubsub(job_id, "running")
-        logger.info(f"Job {job_id} status updated to 'running'")
+        logger.info(f"▶️  Job {job_id} status updated to 'running'")
 
+        if wait_for_subscriber(job_id, timeout_s=10):
+            logger.info(f"✅ Subscriber for job {job_id} is ready, proceeding with localization")
+        else:
+            logger.warning(f"⚠️  No subscriber ready for job {job_id}, proceeding with localization anyway")
+
+        # ===== GET JOB DETAILS =====
         with get_db_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT
-                    lj.id_data,
-                    lj.id_metode,
-                                lj.id_ruangan,
-                                dc.object_path AS data_path,
-                                ml.path_file AS model_path
-                                FROM lokalisasi_jobs lj
-                                JOIN data_csv dc
-                                ON lj.id_data = dc.id
-                                JOIN metodelokalisasi ml
-                                ON lj.id_metode = ml.id
-                                WHERE lj.id = %s
-                            """, (job_id,))
-        row = cur.fetchone()
+                        lj.id_data,
+                        lj.id_metode,
+                        lj.id_ruangan,
+                        dc.object_path AS data_path,
+                        ml.path_file AS model_path
+                    FROM lokalisasi_jobs lj
+                    JOIN data_csv dc ON lj.id_data = dc.id
+                    JOIN metodelokalisasi ml ON lj.id_metode = ml.id
+                    WHERE lj.id = %s
+                """, (job_id,))
+                row = cur.fetchone()
 
         if not row:
             raise ValueError(f"Job {job_id} tidak ditemukan")
 
-        data_id    = row['id_data']
-        metode_id  = row['id_metode']
+        data_id = row['id_data']
+        metode_id = row['id_metode']
         ruangan_id = row['id_ruangan']
-        data_path  = row['data_path']   # misal "Data-Parameter/spotfile3.csv"
-        model_path = row['model_path']  # misal "Models/lok_v1.pkl"
+        data_path = row['data_path']
+        model_path = row['model_path']
         
-        # —————————————————————————
-        # Download CSV & model
-        # —————————————————————————
-        try:
-            csv_bytes   = get_object(MINIO_BUCKET_NAME, data_path)
-            model_bytes = get_object(MINIO_BUCKET_NAME, model_path)
-            logger.info(f"Job {job_id}: downloaded {len(csv_bytes)}B CSV, {len(model_bytes)}B model")
-
-        except Exception as e:
-            logger.error("Job %s: failed to download files: %s", job_id, e)
-            raise
-
-        try:
-            csv_file_path = None
-            model_file_path = None
-            with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as csv_file:
-                csv_file.write(csv_bytes)
-                csv_file_path = csv_file.name
-            
-            with tempfile.NamedTemporaryFile(suffix=".pkl", delete=False) as model_file:
-                model_file.write(model_bytes)
-                model_file_path = model_file.name
-
-            result = run_localization(
-                csv_file_path,
-                model_file_path
-            )
-            x, y = result['x'], result['y'] # type: ignore
-
-            logger.info(f"Job {job_id}: localization result: x={x}, y={y}")
+        logger.info(f"📂 Job {job_id} details: data={data_path}, model={model_path}")
         
-        except Exception as e:
-            logger.error("Job %s: localization failed: %s", job_id, e)
-            # —————————————————————————
-            # On error → status FAILED
-            # —————————————————————————
-            with conn.cursor() as cur:
-                cur.execute(
-                    "UPDATE lokalisasi_jobs SET status=%s, updated_at=%s WHERE id=%s",
-                    ("failed", datetime.now(timezone.utc), job_id)
-                )
-            conn.commit()
-            cache_status(job_id, "failed", error=str(e))
-        finally:
-            # Clean up temporary files
-            try :
-                if csv_file_path: # type: ignore
-                    os.remove(csv_file_path)
-                if model_file_path: # type: ignore
-                    os.remove(model_file_path)
-            except Exception as cleanup_error:
-                logger.error(f"Error cleaning up temporary files for job {job_id}: {cleanup_error}")
-            logger.info(f"Temporary files cleaned up for job {job_id}")
+        # ===== DOWNLOAD FILES =====
+        csv_bytes = get_object(MINIO_BUCKET_NAME, data_path)
+        model_bytes = get_object(MINIO_BUCKET_NAME, model_path)
+        logger.info(f"⬇️  Job {job_id}: downloaded {len(csv_bytes)}B CSV, {len(model_bytes)}B model")
 
-        # —————————————————————————
-        # Insert hasil_lokalisasi
-        # —————————————————————————
-        hasil_id = str(uuid4())  # Generate a new UUID for the result
+        # ===== CREATE TEMP FILES =====
+        with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as csv_file:
+            csv_file.write(csv_bytes)
+            csv_file_path = csv_file.name
+        
+        with tempfile.NamedTemporaryFile(suffix=".pkl", delete=False) as model_file:
+            model_file.write(model_bytes)
+            model_file_path = model_file.name
+
+        logger.info(f"📁 Job {job_id}: temporary files created")
+
+        # ===== RUN LOCALIZATION =====
+        logger.info(f"🔍 Job {job_id}: starting localization process")
+        result = run_localization(csv_file_path, model_file_path)
+        x = result["x"]
+        y = result["y"]
+        logger.info(f"🎯 Job {job_id}: localization result: x={x}, y={y}")
+        
+        # ===== SAVE TO DATABASE =====
+        hasil_id = str(uuid4())
         with transaction() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     "INSERT INTO hasil_lokalisasi "
-                    "(id, hasil_x, hasil_y, id_data, id_metode, id_ruangan, job_id, created_at) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
-                    (hasil_id, x, y, data_id, metode_id, ruangan_id, job_id, datetime.now()) # type: ignore
+                    "(id, hasil_x, hasil_y, id_data, id_metode, id_ruangan) "
+                    "VALUES (%s,%s,%s,%s,%s,%s)",
+                    (hasil_id, x, y, data_id, metode_id, ruangan_id)
                 )
-
                 cur.execute(
                     "UPDATE lokalisasi_jobs SET status=%s, updated_at=%s WHERE id=%s",
                     ("done", datetime.now(timezone.utc), job_id)
                 )
 
-            conn.commit()
-        cache_status(job_id, "done", x=x, y=y) # type: ignore
-        notify_pubsub(job_id, "done", x=x, y=y) # type: ignore
-        logger.info(f"Job {job_id} completed successfully with result: x={x}, y={y}") # type: ignore
+        # ===== SUCCESS NOTIFICATION =====
+        cache_status(job_id, "done", x=x, y=y)
+        notify_pubsub(job_id, "done", x=x, y=y)
+        logger.info(f"✅ Job {job_id} completed successfully with result: x={x}, y={y}")
+        
         return {
             "status": "done",
-            "hasil_x": x,   # type: ignore
-            "hasil_y": y,   # type: ignore
-            "job_id": job_id
+            "x": x,
+            "y": y,
+            "job_id": job_id,
         }
-    
+            
     except Exception as e:
+        # ===== ERROR HANDLING =====
         error_msg = f"{type(e).__name__}: {str(e)}"
-        logger.error(f"Error in localization task for job {job_id}: {error_msg}\n{traceback.format_exc()}")
+        logger.error(f"❌ Error in localization task for job {job_id}: {error_msg}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
 
-        try :
+        # Update job status to failed
+        try:
             with transaction() as conn:
                 with conn.cursor() as cur:
                     cur.execute(
                         "UPDATE lokalisasi_jobs SET status=%s, updated_at=%s WHERE id=%s",
                         ("failed", datetime.now(timezone.utc), job_id)
                     )
+            
             cache_status(job_id, "failed", error=error_msg)
             notify_pubsub(job_id, "failed", error=error_msg)
-            logger.info(f"Job {job_id} status updated to 'failed'")
+            logger.info(f"💥 Job {job_id} status updated to 'failed'")
+            
         except Exception as db_error:
-            logger.error(f"Failed to update job {job_id} status in database: {db_error}")
+            logger.error(f"❌ Failed to update job {job_id} status in database: {db_error}")
+
+        return {
+            "status": "failed",
+            "error": error_msg,
+            "job_id": job_id
+        }
+        
+    finally:
+        # ===== CLEANUP =====
+        try:
+            if csv_file_path and os.path.exists(csv_file_path):
+                os.remove(csv_file_path)
+                logger.debug(f"🗑️  Removed CSV file: {csv_file_path}")
+            if model_file_path and os.path.exists(model_file_path):
+                os.remove(model_file_path)
+                logger.debug(f"🗑️  Removed model file: {model_file_path}")
+            logger.info(f"🧹 Temporary files cleaned up for job {job_id}")
+        except Exception as cleanup_error:
+            logger.error(f"❌ Error cleaning up temporary files for job {job_id}: {cleanup_error}")

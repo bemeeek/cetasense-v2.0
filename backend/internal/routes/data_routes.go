@@ -10,7 +10,7 @@ func RegisterDataRoutes(r *mux.Router, h *handlers.DataHandler) {
 	r.HandleFunc("/api/data", h.GetAllData).Methods("GET")
 }
 
-func RegisterHeatmapRoutes(r *mux.Router, h *handlers.HeatmapHandler) {
-	r.HandleFunc("/api/heatmap", h.ListCSV).Methods("GET")
-	r.HandleFunc("/api/heatmap/{id}", h.GetHeatmap).Methods("GET")
+func RegisterPlotRoutes(r *mux.Router, h *handlers.PlotHandler) {
+	r.HandleFunc("/api/plots", h.ListCSV).Methods("GET")
+	r.HandleFunc("/api/plots/{id}", h.GetPlots).Methods("GET")
 }

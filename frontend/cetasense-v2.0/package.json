@@ -22,7 +22,8 @@
     "react-plotly.js": "^2.6.0",
     "react-router-dom": "^7.6.1",
     "recharts": "^2.15.3",
-    "three": "^0.177.0"
+    "three": "^0.177.0",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
@@ -31,6 +32,7 @@
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@types/react-plotly.js": "^2.6.3",
+    "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.4.1",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.25.0",

@@ -161,26 +161,23 @@ def get_status(job_id: str):
     """
     Get the status of a localization job.
     """
-    cache_key = f"lokalisasi_job_status:{job_id}"
-    cached_data = redis_client.get(cache_key)
+    cache_key = f"lok_status:{job_id}"
+    cached_data = redis_client.hgetall(cache_key)
 
-    if cached_data and cached_data.get("status"):
+    if cached_data:
+        # cached_data sekarang adalah dict<string,string>
+        # jika perlu, cast tipe dan decode timestamp
         response = {
             "job_id": job_id,
-            "status": cached_data["status"],
-            "created_at": cached_data.get("created_at"),
+            "status": cached_data.get("status"),
             "updated_at": cached_data.get("updated_at"),
             "from_cache": True
         }
-
-        if cached_data["status"] == "done":
-            response.update({
-                "hasil_x": float(cached_data.get("hasil_x", 0)),
-                "hasil_y": float(cached_data.get("hasil_y", 0)),
-            })
-        elif cached_data["status"] == "error":
-            response["error_message"] = cached_data.get("error_message", "Unknown error")
-
+        if "hasil_x" in cached_data and "hasil_y" in cached_data:
+            response["hasil_x"] = float(cached_data["hasil_x"])
+            response["hasil_y"] = float(cached_data["hasil_y"])
+        if "error" in cached_data:
+            response["error_message"] = cached_data["error"]
         return response
     
     try:
@@ -290,7 +287,7 @@ def list_jobs(
         logger.error(f"Error listing jobs: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@app.get("/stream/{job_id}")
+@app.get("/api/localize/stream/{job_id}")
 async def stream_job_updates(job_id: str):
     """Server-sent events endpoint for real-time job updates"""
     async def event_generator():
@@ -306,19 +303,13 @@ async def stream_job_updates(job_id: str):
             
             # Listen for updates
             while True:
-                message = pubsub.get_message(timeout=1.0)
-                
-                if message and message['type'] == 'message':
-                    yield f"data: {message['data']}\n\n"
-                    
-                    # Check if job is complete
-                    data = json.loads(message['data'])
-                    if data.get('status') in ['done', 'failed']:
-                        break
-                
-                # Send heartbeat every 30 seconds
-                await asyncio.sleep(0.1)
-                
+                msg = pubsub.get_message(ignore_subscribe_messages=True, timeout=1)
+                if msg and msg['type'] == 'message':
+                    data = msg['data']
+                    if isinstance(data, (bytes, bytearray)):
+                        data = data.decode('utf-8')
+                    yield f"data: {data}\n\n"
+
         except asyncio.CancelledError:
             pass
         finally:

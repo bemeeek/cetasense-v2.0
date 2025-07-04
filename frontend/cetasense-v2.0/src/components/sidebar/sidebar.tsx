@@ -10,7 +10,7 @@ import UnionIcon from '../../assets/ai-settings-spark--cog-gear-settings-machine
 const menu = [
   { icon: HomeIcon, label: 'Home', to: '/home' },
   { icon: SettingsIcon, label: 'Pengaturan', to: '/settings/algoritma', isSettings: true},
-  { icon: DataIcon, label: 'Laman Data', to: '/data-stream' },
+  { icon: DataIcon, label: 'Laman Data', to: '/data-stream/lokalisasi', isDataStream: true },
 ]
 
 const Sidebar: React.FC = () => {
@@ -18,6 +18,7 @@ const Sidebar: React.FC = () => {
   const location = useLocation()
 
   const isSettingsActive = () => location.pathname.startsWith('/settings')
+  const isDataStreamActive = () => location.pathname.startsWith('/data-stream')
 
   return (
     <div
@@ -61,9 +62,11 @@ const Sidebar: React.FC = () => {
       {/* Menu Section - Perfect Icon Alignment */}
       <nav className="flex-1 py-4">
         <div className="space-y-3 px-2">
-          {menu.map(({ icon, label, to, isSettings }) => {
-            const isActive = isSettings 
+            {menu.map(({ icon, label, to, isSettings, isDataStream }) => {
+            const isActive = isSettings
               ? isSettingsActive()
+              : isDataStream
+              ? isDataStreamActive()
               : location.pathname === to
               
 

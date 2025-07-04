@@ -3,7 +3,7 @@ import DataSettingPage from "./pages/DataSettingPage";
 // import HomePage from "./pages/HomePage";
 import RoomPage from "./pages/RoomSettingPage";
 import MethodSettingPage from "./pages/MethodsSettingPage";
-// import HeatMapPage from "./pages/HeatMapPage";
+import PlotDataPage from "./pages/PlotDataPage";
 import LocalizationPage from "./pages/LocalizationPage";
 // import UploadPage from "./pages/MethodsSettingPage";
 
@@ -13,12 +13,17 @@ function App() {
             <Routes>
                 <Route path="/" element={<Navigate to="/settings/data" replace />} />
                 <Route path="settings">
-                <Route path="algoritma" element={<MethodSettingPage />} />
-                <Route path="ruangan" element={<RoomPage />} />
-                <Route path="data" element={<DataSettingPage />} />
-                <Route path="lokalisasi" element={<LocalizationPage />} />
-                {/* <Route path="heatmap" element={<HeatMapPage />} /> */}
-                {/* <Route path="upload" element={<UploadPage />} /> */}
+                    <Route path="algoritma" element={<MethodSettingPage />} />
+                    <Route path="ruangan" element={<RoomPage />} />
+                    <Route path="data" element={<DataSettingPage />} />
+                </Route>
+            </Routes>
+            <Routes>
+                <Route path="/" element={<Navigate to="/data-stream/lokalisasi" replace />} />
+                <Route path="data-stream">
+                    <Route path="lokalisasi" element={<LocalizationPage />} />
+                    <Route path="plot-data" element={<PlotDataPage />} />
+                    <Route index element={<Navigate to="lokalisasi" replace />} />
                 </Route>
             </Routes>
         </BrowserRouter>

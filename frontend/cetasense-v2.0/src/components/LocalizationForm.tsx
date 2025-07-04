@@ -26,42 +26,51 @@ export const LocalizationForm: React.FC<Props> = ({
   setSelectedRuangan,
   setSelectedMethod,
   onSubmit,
-  disabled
+  disabled,
 }) => (
-  <div className="flex gap-4 mb-6">
-    <select
+  <div className="flex flex-row h-10 gap-4">
+    <Select
       value={selectedData}
-      onChange={e => setSelectedData(e.target.value)}
-      className="border p-2 rounded w-1/4"
+      onChange={setSelectedData}
+      options={dataList.map(d => ({ value: d.id, label: d.file_name }))}
+      placeholder="Pilih Data"
       disabled={disabled}
-    >
-      <option value="">Pilih Data</option>
-      {dataList.map(d => <option key={d.id} value={d.id}>{d.file_name}</option>)}
-    </select>
-    <select
+    />
+    <Select
       value={selectedRuangan}
-      onChange={e => setSelectedRuangan(e.target.value)}
-      className="border p-2 rounded w-1/4"
+      onChange={setSelectedRuangan}
+      options={ruanganList.map(r => ({ value: r.id, label: r.nama_ruangan }))}
+      placeholder="Pilih Ruangan"
       disabled={disabled}
-    >
-      <option value="">Pilih Ruangan</option>
-      {ruanganList.map(r => <option key={r.id} value={r.id}>{r.nama_ruangan}</option>)}
-    </select>
-    <select
+    />
+    <Select
       value={selectedMethod}
-      onChange={e => setSelectedMethod(e.target.value)}
-      className="border p-2 rounded w-1/4"
+      onChange={setSelectedMethod}
+      options={methodList.map(m => ({ value: m.method_id, label: m.method_name }))}
+      placeholder="Pilih Metode"
       disabled={disabled}
-    >
-      <option value="">Pilih Metode</option>
-      {methodList.map(m => <option key={m.method_id} value={m.method_id}>{m.method_name}</option>)}
-    </select>
+    />
     <button
       onClick={onSubmit}
-      className="bg-black text-white px-4 py-2 rounded disabled:opacity-50"
+      className={`bg-blue-600 text-white px-4 py-2 rounded-lg transition duration-200 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50`}
       disabled={disabled}
     >
       Tampilkan Lokalisasi
     </button>
   </div>
+);
+
+// Select Component
+const Select: React.FC<{ value: string; options: { value: string; label: string }[]; onChange: (v: string) => void; placeholder: string; disabled: boolean; }> = ({ value, options, onChange, placeholder, disabled }) => (
+  <select
+    value={value}
+    onChange={e => onChange(e.target.value)}
+    className="w-[250px] h-full px-4 py-2 text-sm font-semibold transition-all duration-200 rounded-lg bg-white text-gray-700 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm hover:shadow-md disabled:opacity-50"
+    disabled={disabled}
+  >
+    <option value="" disabled>{placeholder}</option>
+    {options.map(opt => (
+      <option key={opt.value} value={opt.value}>{opt.label}</option>
+    ))}
+  </select>
 );
