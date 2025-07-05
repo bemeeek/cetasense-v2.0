@@ -20,6 +20,7 @@ interface Props {
   disabled: boolean;
 }
 
+
 export const ComparisonForm: React.FC<Props> = ({
   dataList,
   ruanganList,
@@ -37,7 +38,7 @@ export const ComparisonForm: React.FC<Props> = ({
 }) => (
   <div className="space-y-4">
     {/* Baris 1: Data, Ruangan, Tombol */}
-    <div className="grid grid-cols-3 gap-4 items-center">
+    <div className="flex flex-row h-10 gap-4">
       <Select
         value={selectedData}
         onChange={onChangeData}
@@ -52,10 +53,22 @@ export const ComparisonForm: React.FC<Props> = ({
         placeholder="Pilih Ruangan"
         disabled={disabled}
       />
+            <button 
+        onClick={onsubmit}
+        className={`col-span-2 w-[200px]
+           bg-blue-600
+            text-white 
+            px-4 py-2 rounded-lg 
+            transition duration-200 
+            hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50`}
+        disabled={disabled || !selectedData || !selectedRuangan || !selectedAlgA || !selectedAlgB}
+      >
+        Bandingkan
+      </button>
     </div>
 
     {/* Baris 2: Dua Algorithm Dropdown */}
-    <div className="grid grid-cols-2 gap-4">
+    <div className="flex flex-row h-10 gap-4">
       <Select
         value={selectedAlgA}
         onChange={onChangeAlgA}
@@ -70,13 +83,6 @@ export const ComparisonForm: React.FC<Props> = ({
         placeholder="Pilih Algoritma B"
         disabled={disabled}
       />
-      <button 
-        onClick={onsubmit}
-        className={`col-span-2 bg-blue-600 text-white px-4 py-2 rounded-lg transition duration-200 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50`}
-        disabled={disabled}
-      >
-        Bandingkan
-      </button>
     </div>
   </div>
 );

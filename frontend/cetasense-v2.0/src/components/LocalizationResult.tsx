@@ -31,75 +31,7 @@ export const LocalizationResult: React.FC<Props> = ({ ruangan, result }) => {
   const rxPct = toCartesianPct(posisi_x_rx, posisi_y_rx);
   const subPct = toCartesianPct(result.x, result.y);
 
-  return (
-    <div className="p-6 bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl shadow-lg">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold mb-2 text-indigo-600">
-          Hasil Lokalisasi - Koordinat Kartesian
-        </h2>
-        <p className="text-lg text-gray-700">
-          Ruangan: <span className="font-semibold text-blue-500">{nama_ruangan}</span>
-        </p>
-        <div className="flex justify-center gap-6 mt-4 text-sm text-gray-600">
-          <span>Panjang (X): <strong>{panjang}m</strong></span>
-          <span>Lebar (Y): <strong>{lebar}m</strong></span>
-        </div>
-      </div>
-
-      {/* Main Visualization */}
-      <div className="flex flex-col items-center justify-center gap-8">
-        {/* Cartesian Room Visualization */}
-        <div className="relative bg-white border-2 border-gray-300 shadow-lg rounded-xl" style={{ width: size, height: size }}>
-          {/* Cartesian Grid */}
-          {renderCartesianGrid(divX, divY, panjang, lebar)}
-          
-          {/* Axis Lines */}
-          {renderAxisLines()}
-          
-          {/* Connection Lines */}
-          {renderConnectionLines(txPct, rxPct, subPct, size)}
-          
-          {/* Markers */}
-          {renderMarkers(txPct, rxPct, subPct, result)}
-
-          {/* Origin Label */}
-          <div className="absolute bottom-2 left-2 text-sm font-bold text-green-600 bg-white/90 px-2 py-1 rounded border">
-            Origin (0,0)
-          </div>
-          {/* Corner Labels */}
-          <div className="absolute top-2 left-2 text-xs font-medium text-gray-500 bg-white/80 px-2 py-1 rounded">
-            (0,{lebar})
-          </div>
-          <div className="absolute bottom-2 right-2 text-xs font-medium text-gray-500 bg-white/80 px-2 py-1 rounded">
-            ({panjang},0)
-          </div>
-          <div className="absolute top-2 right-2 text-xs font-medium text-gray-500 bg-white/80 px-2 py-1 rounded">
-            ({panjang},{lebar})
-          </div>
-        </div>
-
-        {/* Information Panel (Moved below the map) */}
-        <div className="flex flex-row gap-6 w-full  mx-auto mt-6">
-          <div className="flex flex-col w-full h-[300p] lg:w-1/2">
-            <CoordinateDisplay result={result} />
-          </div>
-          <div className="flex flex-col w-full  h-[300p]  lg:w-1/2">
-            <DeviceInfo ruangan={ruangan} />
-          </div>
-          <div className="flex flex-col w-full  h-[300p]  lg:w-1/2">
-            <CoordinateSystemInfo />
-          </div>
-          <div className="flex flex-col w-full  h-[300p]  lg:w-1/2">
-            <Legend />
-          </div>
-          </div>
-        </div>
-      </div>
-  );
-};
-
-// Render grid lines (simplified)
+  // Render grid lines (simplified)
 const renderCartesianGrid = (divX: number, divY: number, _panjang: number, _lebar: number) => (
   <div className="absolute inset-0">
     {/* Vertical Grid Lines */}
@@ -221,15 +153,15 @@ const CoordinateDisplay: React.FC<{ result: { x: number; y: number } }> = ({ res
   <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200 h-full">
     <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
       <span className="w-3 h-3 bg-blue-600 rounded-full mr-2" />
-      Koordinat Kartesian Subjek
+      Posisi Subjek 
     </h3>
     <div className="space-y-3">
       <div className="flex justify-between items-center p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
-        <span className="font-medium text-gray-700">X (Panjang):</span>
+        <span className="font-medium text-gray-700">Koordinat X :</span>
         <span className="font-bold text-2xl text-blue-600">{result.x.toFixed(2)}m</span>
       </div>
       <div className="flex justify-between items-center p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg">
-        <span className="font-medium text-gray-700">Y (Lebar):</span>
+        <span className="font-medium text-gray-700">Koordinat T :</span>
         <span className="font-bold text-2xl text-green-600">{result.y.toFixed(2)}m</span>
       </div>
     </div>
@@ -310,3 +242,78 @@ const Legend = () => (
     </div>
   </div>
 );
+
+
+  return (
+  <div className="p-6 bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl shadow-lg">
+    {/* Header */}
+    <div className="text-center mb-8">
+      <h2 className="text-3xl font-bold mb-2 text-indigo-600">
+        Hasil Lokalisasi – Koordinat Kartesian
+      </h2>
+      <p className="text-lg text-gray-700">
+        Ruangan:{' '}
+        <span className="font-semibold text-blue-500">
+          {nama_ruangan}
+        </span>
+      </p>
+      <div className="flex justify-center gap-6 mt-4 text-sm text-gray-600">
+        <span>
+          Panjang (X): <strong>{panjang}m</strong>
+        </span>
+        <span>
+          Lebar (Y): <strong>{lebar}m</strong>
+        </span>
+      </div>
+    </div>
+
+    {/* Main: Canvas + Info Panels */}
+    <div className="flex flex-col lg:flex-row items-start gap-8">
+      {/* Canvas */}
+      <div className="flex-shrink-0">
+        <div
+          className="relative bg-white border-2 border-gray-300 shadow-lg rounded-xl"
+          style={{ width: size, height: size }}
+        >
+          {renderCartesianGrid(divX, divY, panjang, lebar)}
+          {renderAxisLines()}
+          {renderConnectionLines(txPct, rxPct, subPct, size)}
+          {renderMarkers(txPct, rxPct, subPct, result)}
+          {/* Origin & Corners */}
+          <div className="absolute bottom-2 left-2 text-sm font-bold text-green-600 bg-white/90 px-2 py-1 rounded border">
+            Origin (0,0)
+          </div>
+          <div className="absolute top-2 left-2 text-xs font-medium text-gray-500 bg-white/80 px-2 py-1 rounded">
+            (0,{lebar})
+          </div>
+          <div className="absolute bottom-2 right-2 text-xs font-medium text-gray-500 bg-white/80 px-2 py-1 rounded">
+            ({panjang},0)
+          </div>
+          <div className="absolute top-2 right-2 text-xs font-medium text-gray-500 bg-white/80 px-2 py-1 rounded">
+            ({panjang},{lebar})
+          </div>
+        </div>
+      </div>
+
+      {/* Information Panels */}
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-6">        
+        <div>
+          <CoordinateDisplay result={result} />
+        </div>
+        <div>
+          <DeviceInfo ruangan={ruangan} />
+        </div>
+        <div>
+          <CoordinateSystemInfo />
+        </div>
+        <div>
+          <Legend />
+        </div>
+      </div>
+    </div>
+  </div>
+)
+}
+
+
+export default LocalizationResult;

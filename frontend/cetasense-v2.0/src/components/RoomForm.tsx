@@ -257,7 +257,7 @@ const RoomForm: React.FC<RoomFormProps> = ({
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !nama || !panjang || !lebar || !txX || !txY || !rxX || !rxY}
               className="bg-black text-white py-3 px-8 rounded-lg font-semibold hover:bg-gray-800 transition disabled:opacity-50"
             >
               {isSubmitting ? 'Loading...' : 'Submit'}

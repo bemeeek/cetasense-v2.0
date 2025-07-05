@@ -53,56 +53,52 @@ export const ComparisonResult: React.FC<Props> = ({ ruangan, data, results }) =>
         </div>
       </div>
 
-      {/* Visualization Canvas */}
-      <div className="flex flex-col items-center justify-center gap-8">
-        <div
-          className="relative bg-white border-2 border-gray-300 shadow-lg rounded-xl"
-          style={{ width: size, height: size }}
-        >
-          {renderCartesianGrid(divX, divY)}
-          {renderAxisLines()}
-        {markers.map(({ label, result }) => result && (
-        <React.Fragment key={label}>
-            {renderConnectionLines(
-            label === 'A' ? txPct : rxPct,
-            toCartesianPct(result.x, result.y),
-            label === 'A' ? 'magenta' : 'orange'
+       <div className="flex flex-col lg:flex-row items-start gap-8">
+        {/* Canvas */}
+        <div className="flex-shrink-0">
+          <div style={{ width: size, height: size }} className="relative bg-white border-2 border-gray-300 shadow-lg rounded-xl overflow-hidden">
+            {renderCartesianGrid(divX, divY)}
+            {renderAxisLines()}
+            {markers.map(({ label, result }) =>
+              result ? (
+                <React.Fragment key={label}>
+                  {renderConnectionLines(
+                    label === 'A' ? txPct : rxPct,
+                    toCartesianPct(result.x, result.y),
+                    label === 'A' ? 'magenta' : 'orange'
+                  )}
+                  {renderSubjectMarker(result.x, result.y, label)}
+                </React.Fragment>
+              ) : null
             )}
-            {renderSubjectMarker(result.x, result.y, label)}
-        </React.Fragment>
-        ))}
-        {renderMarkers(
-          txPct,
-          rxPct,
-          subPct1,
-          subPct2,
-          results.run1 || { x: 0, y: 0 },
-          results.run2 || { x: 0, y: 0 }
-        )}
+            {renderMarkers(txPct, rxPct, subPct1, subPct2, results.run1 ?? { x: 0, y: 0 }, results.run2 ?? { x: 0, y: 0 })}
+            <div className="absolute bottom-2 left-2 text-sm font-bold text-green-600 bg-white/90 px-2 py-1 rounded border">
+            Origin (0,0)
+            </div>
+            <div className="absolute top-2 left-2 text-xs font-medium text-gray-500 bg-white/80 px-2 py-1 rounded">
+              (0,{lebar})
+            </div>
+            <div className="absolute bottom-2 right-2 text-xs font-medium text-gray-500 bg-white/80 px-2 py-1 rounded">
+              ({panjang},0)
+            </div>
+            <div className="absolute top-2 right-2 text-xs font-medium text-gray-500 bg-white/80 px-2 py-1 rounded">
+              ({panjang},{lebar})
+          </div>
+          </div>
         </div>
 
         {/* Information Panels */}
-        <div className="flex flex-row gap-6 w-full mx-auto mt-6">
-          <div className="flex-1">
-            {results.run1 && <CoordinateDisplay result={results.run1} />}
-          </div>
-          <div className="flex-1">
-            {results.run2 && <CoordinateDisplay result={results.run2} />}
-          </div>
-          <div className="flex-1">
-            <DeviceInfo ruangan={ruangan} />
-          </div>
-          <div className="flex-1">
-            <CoordinateSystemInfo />
-          </div>
-          <div className="flex-1">
-            <Legend />
-          </div>
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {results.run1 && <CoordinateDisplay1 result={results.run1} />}
+          {results.run2 && <CoordinateDisplay2 result={results.run2} />}
+          <DeviceInfo ruangan={ruangan} />
+          <CoordinateSystemInfo />
+          <Legend />
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
 export default ComparisonResult;
 
@@ -175,19 +171,38 @@ const renderMarkers = (
 );
 
 
-const CoordinateDisplay: React.FC<{ result: { x: number; y: number } }> = ({ result }) => (
+const CoordinateDisplay1: React.FC<{ result: { x: number; y: number } }> = ({ result }) => (
   <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200 h-full">
     <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-      <span className="w-3 h-3 bg-blue-600 rounded-full mr-2" />
-      Koordinat Kartesian Subjek
+      <span className="w-3 h-3 bg-red-600 rounded-full mr-2" />
+      Posisi Subjek 1
     </h3>
     <div className="space-y-3">
       <div className="flex justify-between items-center p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
-        <span className="font-medium text-gray-700">X (Panjang):</span>
+        <span className="font-medium text-gray-700">Koordinat X:</span>
         <span className="font-bold text-2xl text-blue-600">{result.x.toFixed(2)}m</span>
       </div>
       <div className="flex justify-between items-center p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg">
-        <span className="font-medium text-gray-700">Y (Lebar):</span>
+        <span className="font-medium text-gray-700">Koordinat Y:</span>
+        <span className="font-bold text-2xl text-green-600">{result.y.toFixed(2)}m</span>
+      </div>
+    </div>
+  </div>
+);
+
+const CoordinateDisplay2: React.FC<{ result: { x: number; y: number } }> = ({ result }) => (
+  <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200 h-full">
+    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+      <span className="w-3 h-3 bg-green-600 rounded-full mr-2" />
+      Posisi Subjek 2
+    </h3>
+    <div className="space-y-3">
+      <div className="flex justify-between items-center p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
+        <span className="font-medium text-gray-700">Koordinat X:</span>
+        <span className="font-bold text-2xl text-blue-600">{result.x.toFixed(2)}m</span>
+      </div>
+      <div className="flex justify-between items-center p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg">
+        <span className="font-medium text-gray-700">Koordinat Y:</span>
         <span className="font-bold text-2xl text-green-600">{result.y.toFixed(2)}m</span>
       </div>
     </div>
@@ -261,10 +276,16 @@ const Legend = () => (
         <span className="text-sm font-medium">Antena Receiver</span>
       </div>
       <div className="flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg transition-colors">
-        <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full border-2 border-white shadow-md flex items-center justify-center">
+        <div className="w-6 h-6 bg-gradient-to-br from-red-500 to-red-700 rounded-full border-2 border-white shadow-md flex items-center justify-center">
           <div className="w-2 h-2 bg-white rounded-full" />
         </div>
-        <span className="text-sm font-medium">Posisi Subjek Target</span>
+        <span className="text-sm font-medium">Posisi Subjek 1</span>
+      </div>
+      <div className="flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg transition-colors">
+        <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-green-700 rounded-full border-2 border-white shadow-md flex items-center justify-center">
+          <div className="w-2 h-2 bg-white rounded-full" />
+        </div>
+        <span className="text-sm font-medium">Posisi Subjek 2</span>
       </div>
     </div>
   </div>
@@ -330,45 +351,3 @@ const renderSubjectMarker = (x: number, y: number, label: string) => {
     </div>
   );
 };
-const renderDeviceMarkers = (
-  txPct: { left: string; bottom: string },
-  rxPct: { left: string; bottom: string }
-) => (
-  <>
-    {/* TX Marker */}
-    <div
-      className="absolute"
-      style={{ left: txPct.left, bottom: txPct.bottom, transform: 'translate(-50%,50%)' }}
-    >
-      <div className="w-7 h-7 bg-pink-500 rounded-full shadow-xl border-3 border-white">
-        <div className="absolute inset-0 bg-pink-300 rounded-full animate-ping opacity-40" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-white font-bold text-xs">TX</span>
-        </div>
-      </div>
-    </div>
-    {/* RX Marker */}
-    <div
-      className="absolute"
-      style={{ left: rxPct.left, bottom: rxPct.bottom, transform: 'translate(-50%,50%)' }}
-    >
-      <div className="w-7 h-7 bg-yellow-500 rounded-full shadow-xl border-3 border-white">
-        <div className="absolute inset-0 bg-yellow-300 rounded-full animate-ping opacity-40" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-white font-bold text-xs">RX</span>
-        </div>
-      </div>
-    </div>
-  </>
-);
-
-const renderCorners = (panjang: number, lebar: number) => (
-  <>
-    <div className="absolute bottom-2 left-2 text-sm font-bold text-green-600 bg-white/90 px-2 py-1 rounded border">Origin (0,0)</div>
-    <div className="absolute top-2 left-2 text-xs font-medium text-gray-500 bg-white/80 px-2 py-1 rounded">(0,{lebar})</div>
-    <div className="absolute bottom-2 right-2 text-xs font-medium text-gray-500 bg-white/80 px-2 py-1 rounded">({panjang},0)</div>
-    <div className="absolute top-2 right-2 text-xs font-medium text-gray-500 bg-white/80 px-2 py-1 rounded">({panjang},{lebar})</div>
-  </>
-);
-
-

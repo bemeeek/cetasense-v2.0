@@ -8,17 +8,21 @@ import {
   fetchMethods,
   localize,
   listenLocalizationResult,
-  type StatusResponse
 } from '../services/api';
 import { ComparisonForm } from '../components/ComparisonForm';
 import { ComparisonResult } from '../components/ComparisonResult';
 import Sidebar from '../components/sidebar/sidebar';
+import { WifiIcon } from '@heroicons/react/24/outline';
+import { TabSwitcherData } from '../components/switchertab/TabSwitcherData';
+import { CheckCircleIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 export const ComparisonPage: React.FC = () => {
   // 1) Metadata lists
   const [dataList, setDataList] = useState<CSIFileMeta[]>([]);
   const [ruanganList, setRuanganList] = useState<Ruangan[]>([]);
   const [methodList, setMethodList] = useState<Methods[]>([]);
+  const [jobStatus, setJobStatus] = useState<'idle'|'queued'|'running'|'done'|'failed'>('idle');
+  const isLoading = jobStatus==='queued' || jobStatus==='running';
 
   // 2) Selected inputs
   const [params, setParams] = useState({
@@ -28,7 +32,7 @@ export const ComparisonPage: React.FC = () => {
 
   // 3) Results & loading
   const [results, setResults] = useState<{ run1: { x: number; y: number } | null; run2: { x: number; y: number } | null }>({ run1: null, run2: null });
-  const [loading, setLoading] = useState(false);
+
 
   // 4) SSE refs for cleanup
   const sse = useRef<{ run1: EventSource | null; run2: EventSource | null }>({
@@ -78,7 +82,7 @@ export const ComparisonPage: React.FC = () => {
 
   // 7) Start comparison process
 const startComparison = async () => {
-  setLoading(true);
+  setJobStatus('queued');
   setResults({ run1: null, run2: null });
 
   // Trigger both localization jobs
@@ -88,16 +92,24 @@ const startComparison = async () => {
   // Subscribe to both SSE streams
   (['run1', 'run2'] as const).forEach((run) => {
     const jobId = run === 'run1' ? respA.job_id : respB.job_id;
-    const es = listenLocalizationResult(jobId, (msg: StatusResponse) => {
+    const es = listenLocalizationResult(jobId, (msg) => {
       console.log(run, msg); // Add logging to check if both runs are received
+      if (msg.status==='running') {
+        setJobStatus('running');
+      }
       if (msg.status === 'done') {
-        setResults(prev => ({
-          ...prev,
-          [run]: { x: msg.hasil_x!, y: msg.hasil_y! }
-        }));
+        setResults(prev => {
+          const next = { ...prev, [run]: { x: msg.hasil_x!, y: msg.hasil_y! } };
+          // baru set jadi DONE kalau kedua run1 & run2 sudah ada hasil
+          if (next.run1 && next.run2) {
+            setJobStatus('done');
+          }
+          return next;
+        });
         es.close();
       }
       if (msg.status === 'failed') {
+        setJobStatus('failed');
         es.close();
       }
     });
@@ -107,19 +119,31 @@ const startComparison = async () => {
 
 
   // Check if rooms match
-  const sameRoom = params.run1.ruangan && params.run1.ruangan === params.run2.ruangan;
   const room = ruanganList.find((r) => r.id === params.run1.ruangan);
-  const sameData = params.run1.data && params.run1.data === params.run2.data;
-  const data = dataList.find((d) => d.id === params.run1.data);
 
   return (
-    <div className="flex min-h-screen bg-gray-100 overflow-hidden">
+    <div className="flex bg-gray-100 min-h-screen overflow-hidden">
       <aside className="flex-shrink-0">
         <Sidebar />
       </aside>
-      <main className="flex-1 p-8 space-y-8">
-        <h1 className="text-2xl font-bold">Perbandingan Lokalisasi</h1>
 
+      <div className="flex-1 items-center gap-4 flex-col">
+        {/* Header */}
+        <header className="flex items-center bg-white h-[122px] px-8 shadow-sm">
+          <WifiIcon className="w-[52px] h-[52px]" />
+          <div className="ml-6">
+            <h1 className="text-[23.5px] font-bold text-[#1c1c1c]">
+              Data Stream
+            </h1>
+            <p className="text-[17.2px] text-[#7a7a7a]">
+              Laman Data Stream ini digunakan untuk melihat analisis data parameter CSI yang akan digunakan, melihat hasil sistem pemosisian subjek dalam ruang, dan membandingkan hasil dari dua algoritma yang berbeda.
+            </p>
+          </div>
+        </header>
+
+        <TabSwitcherData />
+
+      <div className="flex-1 flex-row items-center p-8 gap-4">
         <ComparisonForm
         dataList={dataList}
         ruanganList={ruanganList}
@@ -135,25 +159,18 @@ const startComparison = async () => {
         onChangeDataRun2={v => handleChange('run2', 'data', v)}  // For run2
         onChangeRuanganRun2={v => handleChange('run2', 'ruangan', v)} // For run2
         onSubmit={startComparison}
-        disabled={loading}
+        disabled={isLoading}
         />
         
+        <div className="flex flex-col mt-4 mb-5 gap-2">
 
-        {!sameRoom && (
-          <p className="text-red-500">Pastikan kedua algoritma memilih ruangan yang sama.</p>
+        {isLoading && (
+          <LoadingIndicator />
         )}
 
-        {!sameData && (
-          <p className="text-red-500">Pastikan kedua algoritma memilih data yang sama.</p>
-        )}
+        {jobStatus !== 'idle' && <StatusMessage status={jobStatus} />}
+        </div>
 
-        <button
-          onClick={startComparison}
-          disabled={loading || !sameRoom}
-          className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50"
-        >
-          Mulai Perbandingan
-        </button>
 
         {room && (results.run1 || results.run2) && (
             <ComparisonResult
@@ -161,9 +178,79 @@ const startComparison = async () => {
             results={{ run1: results.run1, run2: results.run2 }}
             />
         )}
-      </main>
+    </div>
+    </div>
     </div>
   );
 };
+
+// Enhanced Loading Indicator Component
+const LoadingIndicator = () => (
+  <div className="fixed top-6 right-6 z-50">
+    <div className="flex items-center gap-3 p-4 bg-white rounded-xl shadow-2xl border border-gray-200 animate-fade-in">
+      <div className="relative flex-shrink-0">
+        <div className="animate-spin rounded-full h-6 w-6 border-[3px] border-blue-100"></div>
+        <div className="animate-spin rounded-full h-6 w-6 border-t-[3px] border-blue-600 absolute top-0 left-0"></div>
+      </div>
+      <div>
+        <div className="text-sm font-semibold text-gray-800">Memproses Lokalisasi</div>
+        <div className="text-xs text-gray-500">Harap tunggu...</div>
+      </div>
+    </div>
+  </div>
+);
+
+// Enhanced Status Message Component
+const StatusMessage: React.FC<{ status: string }> = ({ status }) => {
+  const getStatusConfig = () => {
+    const statusLower = status.toLowerCase();
+    
+    if (statusLower.includes('done') || statusLower.includes('complete')) {
+      return {
+        icon: CheckCircleIcon,
+        iconColor: 'text-green-500',
+        bgColor: 'bg-green-50',
+        borderColor: 'border-green-200',
+        textColor: 'text-green-800',
+        title: 'Proses Selesai'
+      };
+    } else if (statusLower.includes('fail') || statusLower.includes('error')) {
+      return {
+        icon: ExclamationTriangleIcon,
+        iconColor: 'text-red-500',
+        bgColor: 'bg-red-50',
+        borderColor: 'border-red-200',
+        textColor: 'text-red-800',
+        title: 'Proses Gagal'
+      };
+    } else {
+      return {
+        icon: ClockIcon,
+        iconColor: 'text-blue-500',
+        bgColor: 'bg-blue-50',
+        borderColor: 'border-blue-200',
+        textColor: 'text-blue-800',
+        title: 'Proses Berjalan'
+      };
+    }
+  };
+
+  const { icon: Icon, iconColor, bgColor, borderColor, textColor, title } = getStatusConfig();
+
+  return (
+    <div className="fixed top-6 right-6 z-50">
+      <div className={`flex items-center gap-3 p-4 ${bgColor} rounded-xl shadow-2xl border ${borderColor} animate-fade-in`}>
+        <Icon className={`w-6 h-6 ${iconColor} flex-shrink-0`} />
+        <div>
+          <div className={`text-sm font-semibold ${textColor}`}>{title}</div>
+          <div className="text-xs text-gray-500">{status}</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+
 
 export default ComparisonPage;

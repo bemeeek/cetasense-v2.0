@@ -60,12 +60,12 @@ const PlotPage: React.FC = () => {
         {/* Header */}
         <header className="flex items-center bg-white h-[122px] px-8 shadow-sm">
           <WifiIcon className="w-[52px] h-[52px]" />
-          <div className="ml-4">
+          <div className="ml-6">
             <h1 className="text-[23.5px] font-bold text-[#1c1c1c]">
               Data Stream
             </h1>
             <p className="text-[17.2px] text-[#7a7a7a]">
-                            Laman pengaturan memungkinkan anda untuk mengunggah algoritma pemosisian, data parameter CSI, dan mengatur ruangan untuk sistem pemosisian
+              Laman Data Stream ini digunakan untuk melihat analisis data parameter CSI yang akan digunakan, melihat hasil sistem pemosisian subjek dalam ruang, dan membandingkan hasil dari dua algoritma yang berbeda.
             </p>
           </div>
         </header>
