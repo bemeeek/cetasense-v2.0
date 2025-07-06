@@ -1,17 +1,19 @@
 services:
 
   nginx:
-    image: nginx:stable-alpine
-    container_name: lb_nginx
+    build:
+      context: ./frontend/cetasense-v2.0
+      dockerfile: dockerfile
+    image: frontend-nginx:latest
+    restart: unless-stopped
     ports:
       - "80:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - go_gateway
       - py_api
     networks:
       - app-network
+
 
   mariadb:
     image: mariadb:latest
@@ -79,7 +81,7 @@ services:
   go_gateway:
     build:
       context: ./backend
-    container_name: go_gateway
+    # container_name: go_gateway
     restart: on-failure
     env_file:
       - ./.env
@@ -91,21 +93,23 @@ services:
       - DB_USER=root
       - DB_PASSWORD=Rafi111703
       - DB_NAME=bismillahta
-    ports:
-      - "8081:8081"
+    # ports:
+    #   - "8081:8081"
     depends_on:
       - mariadb
       - minio
       - redis
       - rabbitmq
     networks:
-      - app-network
+      app-network:
+        aliases:
+          - go_gateway
   
   py_api:
     build:
       context: ./backend-localization-py
       dockerfile: dockerfile
-    container_name: py_api
+    # container_name: py_api
     restart: unless-stopped
     env_file:
       - ./.env
@@ -116,8 +120,8 @@ services:
       - DB_PASSWORD=Rafi111703
       - DB_NAME=bismillahta
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
-    ports:
-      - "8001:8000"
+    # ports:
+    #   - "8001:8000"
     depends_on:
       - go_gateway
       - mariadb
@@ -125,12 +129,14 @@ services:
       - redis
       - rabbitmq
     networks:
-      - app-network
+      app-network:
+        aliases:
+          - py_api
   
   rabbit_consumer:
     build:
       context: ./backend-localization-py
-    container_name: rabbit_consumer
+    # container_name: rabbit_consumer
     restart: unless-stopped
     env_file:
       - ./.env
@@ -151,7 +157,7 @@ services:
   celery_worker:
     build:
       context: ./backend-localization-py
-    container_name: celery_worker
+    # container_name: celery_worker
     restart: unless-stopped
     env_file:
       - ./.env

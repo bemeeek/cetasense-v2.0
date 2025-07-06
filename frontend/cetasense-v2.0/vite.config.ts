@@ -6,22 +6,38 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    host: 'localhost',
+    port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8081',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
+        // biarkan prefix /api agar route di Go-Gateway tetap /api/...
+        rewrite: (path) => path,  
+      },
+      '/localize': {
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+        // biarkan prefix /localize agar route di Go-Gateway tetap /localize/...
+        rewrite: (path) => path,  
       }
-    },
-    port: 5173,
-    host: 'localhost'
+    }
   },
   preview: {
+    host: 'localhost',
     port: 5173,
-    host: 'localhost'
+    // kalau mau preview juga pakai proxy, dup aplikasi server.proxy di sini:
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+        rewrite: (path) => path,
+      }
+    }
   },
   build: {
     outDir: 'dist',
     emptyOutDir: true
-    }
+  }
 })
+

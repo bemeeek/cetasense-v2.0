@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -178,10 +178,11 @@ export function listenLocalizationResult(
   job_id: string,
   onMessage: (data: StatusResponse) => void
 ): EventSource {
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api';
+  // pakai fallback '/api' seperti axios
+  const base = import.meta.env.VITE_API_BASE_URL || '/api';
   const url  = `${base}/localize/stream/${job_id}`;
   const es   = new EventSource(url);
-  es.onmessage = e => onMessage(JSON.parse(e.data) as StatusResponse);
+  es.onmessage = e => onMessage(JSON.parse(e.data));
   es.onerror   = () => es.close();
   return es;
 }

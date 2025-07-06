@@ -2,13 +2,12 @@ import React from 'react';
 import { type CSIFileMeta, type Ruangan } from '../services/api';
 
 
-interface Result { x: number; y: number; }
 interface Props {
   ruangan: Ruangan;
   data?: CSIFileMeta;
   results: { run1: { x: number; y: number } | null; run2: { x: number; y: number } | null; }
 }
-export const ComparisonResult: React.FC<Props> = ({ ruangan, data, results }) => {
+export const ComparisonResult: React.FC<Props> = ({ ruangan, results }) => {
   const {
     panjang,
     lebar,
@@ -338,7 +337,6 @@ const renderConnectionLines = (
 
 const renderSubjectMarker = (x: number, y: number, label: string) => {
   console.log(label, x, y);  // Log koordinat
-  const pct = { left: `${(x / 1) * 100}%`, bottom: `${(y / 1) * 100}%` };
   return (
     <div
       key={label + '-subj'}
