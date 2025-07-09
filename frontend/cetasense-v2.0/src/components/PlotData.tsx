@@ -3,6 +3,7 @@ import Plot from "react-plotly.js";
 
 export interface PlotData {
   avgAll: number[][];        // [3][30]
+  avgPerPacket: number[][]; // [3][30]
   meanAnt1: number[];        // [30]
   meanAnt2: number[];        // [30]
   meanAnt3: number[];        // [30]
@@ -38,6 +39,8 @@ const PlotDataComponent: React.FC<PlotDataProps> = ({ data }) => {
     displayModeBar: false,
     displaylogo: false,
   };
+
+   const [activePktAnt, setActivePktAnt] = React.useState(0);
 
   const baseLayout = {
     margin: { t: 40, l: 60, r: 40, b: 40 },
@@ -103,46 +106,51 @@ const PlotDataComponent: React.FC<PlotDataProps> = ({ data }) => {
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-      {/* 1) Plot Rata-Rata Amplitudo Semua Antena */}
+      {/* — Plot rata-rata per paket per antena — */}
       <div className={cardClass}>
-        <div className="flex items-center mb-6">
-          <div className="w-1 h-6 bg-blue-500 rounded-full mr-3"></div>
-          <h3 className="text-xl font-semibold text-gray-800">
-            Analisis Rata-Rata Amplitudo
-          </h3>
+        <h3 className="font-semibold mb-2">Rata-Rata Amplitudo per Paket</h3>
+        <div className="flex gap-2 mb-4">
+          {data.antennas.map((ant,i) =>
+            <button
+              key={ant}
+              onClick={()=>setActivePktAnt(i)}
+              className={
+                activePktAnt===i
+                  ? "bg-blue-600 text-white px-3 py-1 rounded"
+                  : "bg-gray-200 text-gray-700 px-3 py-1 rounded"
+              }
+            >
+              {ant}
+            </button>
+          )}
         </div>
-        <p className="text-gray-600 text-sm mb-4">
-          Analisis komparatif di semua saluran antena
-        </p>
         <Plot
-          data={data.avgAll.map((arr, i) => ({
-            x: subs,
-            y: arr,
-            type: "scatter" as const,
-            mode: "lines+markers" as const,
-            name: data.antennas[i],
-            line: {
-              color: colors[i],
-              width: 3,
-              shape: "spline" as const,
+          data={[
+            {
+              x: Array.from({ length: data.avgPerPacket[0].length }, (_, i) => i + 1),
+              y: data.avgPerPacket[Number(activeMean.slice(-1)) - 1],
+              type: "scatter" as const,
+              mode: "lines",
+              name: data.antennas[Number(activeMean.slice(-1)) - 1],
+              line: { color: "#14b8a6", width: 2 },
             },
-            marker: {
-              size: 6,
-              color: colors[i],
-              line: { color: "white", width: 2 },
-            },
-          }))}
+          ]}
           layout={{
             ...baseLayout,
-            yaxis: {
-              ...baseLayout.yaxis,
-              title: { text: "Rata-Rata Amplitudo", font: { size: 14, color: "#374151" } },
+            xaxis: {
+              title: { text: "Indeks Paket", font: { size: 14 } },
             },
+            yaxis: {
+              title: { text: "Mean Amplitudo", font: { size: 14 } },
+            },
+            showlegend: false,
           }}
           config={commonConfig}
-          style={{ width: "100%", height: 320 }}
+          style={{ width: "100%", height: 300 }}
         />
+
       </div>
+
 
       {/* 2) Plot Bar Chart per Antena */}
       <div className={cardClass}>

@@ -82,6 +82,7 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 			avgAll[ant][s] = sum / float64(n)
 		}
 	}
+
 	// 4) mean per antenna per-subcarrier
 	meanAnt1 := avgAll[0]
 	meanAnt2 := avgAll[1]
@@ -105,6 +106,18 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 		"last": data[n-1][2*sub : 3*sub],
 	}
 
+	avgPerPacket := make([][]float64, 3)
+	for ant := 0; ant < 3; ant++ {
+		avgPerPacket[ant] = make([]float64, n)
+		for p := 0; p < n; p++ {
+			sum := 0.0
+			for s := 0; s < sub; s++ {
+				sum += data[p][ant*sub+s]
+			}
+			avgPerPacket[ant][p] = sum / float64(sub)
+		}
+	}
+
 	// 6) overallMean per antenna
 	overallMean := make([]float64, 3)
 	for ant := 0; ant < 3; ant++ {
@@ -117,15 +130,16 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 
 	// 7) kirim JSON
 	respondJSON(w, http.StatusOK, map[string]interface{}{
-		"avgAll":      avgAll,
-		"meanAnt1":    meanAnt1,
-		"meanAnt2":    meanAnt2,
-		"meanAnt3":    meanAnt3,
-		"snapshots1":  snapshots1,
-		"snapshots2":  snapshots2,
-		"snapshots3":  snapshots3,
-		"overallMean": overallMean,
-		"subcarriers": sub, // =1…30
-		"antennas":    []string{"Ant 1", "Ant 2", "Ant 3"},
+		"avgAll":       avgAll,
+		"avgPerPacket": avgPerPacket,
+		"meanAnt1":     meanAnt1,
+		"meanAnt2":     meanAnt2,
+		"meanAnt3":     meanAnt3,
+		"snapshots1":   snapshots1,
+		"snapshots2":   snapshots2,
+		"snapshots3":   snapshots3,
+		"overallMean":  overallMean,
+		"subcarriers":  sub, // =1…30
+		"antennas":     []string{"Ant 1", "Ant 2", "Ant 3"},
 	})
 }

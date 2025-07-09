@@ -33,19 +33,26 @@ export const LocalizationPage: React.FC = () => {
   const sseRef = useRef<EventSource | null>(null);
 
   // Fetch initial data
+    useEffect(() => {
+      const fetchData = async () => {
+        try {
+          const [files, rooms, methods] = await Promise.all([
+            fetchCSIFileMeta(),
+            fetchRuangan(),
+            fetchMethods(),
+          ]);
+          setDataList(files);
+          setRuanganList(rooms);
+          setMethodList(methods);
+        } catch (err) {
+          console.error('Gagal load init data:', err);
+        }
+      };
+      fetchData();
+    }, []);
   useEffect(() => {
-    const fetchData = async () => {
-      const [files, rooms, methods] = await Promise.all([
-        fetchCSIFileMeta(),
-        fetchRuangan(),
-        fetchMethods(),
-      ]);
-      setDataList(files);
-      setRuanganList(rooms);
-      setMethodList(methods);
-    };
-    fetchData();
-  }, []);
+  console.log('🛠️ ruanganList di komponen =', ruanganList, 'isArray?', Array.isArray(ruanganList));
+}, [ruanganList]);
 
   // Clean up SSE on unmount
   useEffect(() => {

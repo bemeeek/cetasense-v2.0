@@ -11,11 +11,13 @@ import (
 	"syscall"
 	"time"
 
+	"cetasense-v2.0/cache"
 	"cetasense-v2.0/config"
 	"cetasense-v2.0/database"
 	"cetasense-v2.0/internal/handlers"
 	"cetasense-v2.0/internal/repositories"
 	"cetasense-v2.0/internal/routes"
+	"cetasense-v2.0/middleware"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
@@ -95,6 +97,11 @@ func main() {
 		Addr:     redisAddr,
 		Password: "",          // No password set
 		DB:       cfg.RedisDB, // Use default DB
+		// DialTimeout:  5 * time.Second,
+		// ReadTimeout:  3 * time.Second,
+		// WriteTimeout: 3 * time.Second,
+		PoolSize:     50,
+		MinIdleConns: 10,
 	})
 
 	if err := rdb.Ping(ctx).Err(); err != nil {
@@ -150,6 +157,9 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "OK")
 	})
+
+	cacheClient := cache.NewClient(redisAddr, cfg.RedisDB)
+	router.Use(middleware.CacheMiddleware(cacheClient, 5*time.Minute)) // Set cache TTL to 5 minutes
 
 	// Test di main.go
 	log.Printf("LocalizationHandler function: %v", handlers.LocalizationHandler)

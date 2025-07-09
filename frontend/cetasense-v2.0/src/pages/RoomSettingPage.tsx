@@ -5,7 +5,7 @@ import RoomForm from '../components/RoomForm';
 import HistoryRoomList from '../components/RoomList';
 import aiIcon from '../assets/ai-settings-spark--cog-gear-settings-machine-artificial-intelligence.svg';
 import {
-  fetchRoom,
+  fetchRuangan,
   createRoom,
   updateRoom,
   deleteRoom,
@@ -21,8 +21,8 @@ const RoomSettingPage: React.FC = () => {
 
   const loadRooms = async () => {
     try {
-      const resp = await fetchRoom();
-      setRooms(resp.data ?? []);
+      const resp = await fetchRuangan();
+      setRooms(resp);
     } catch {
       setError('Gagal memuat data ruangan.');
     }

@@ -60,6 +60,13 @@ export interface CSIFileMeta {
   nama_filter: string;
 }
 
+// interface RawMethod {
+//   id:          string;
+//   nama_metode: string;
+//   tipe_metode: number;
+//   path_file:   string;
+// }
+
 export interface Methods {
   method_id: string;
   method_name: string;
@@ -68,7 +75,7 @@ export interface Methods {
 }
 
 // Response tipe untuk enqueue lokalizasi
-export interface LocalizatioResponse {
+export interface LocalizationResponse {
   job_id: string;
   status: 'queued' | 'running' | 'done';
 }
@@ -85,31 +92,25 @@ export interface StatusResponse {
 // ————————————————————————————————————————————————————————————————
 
 export const fetchCSIFileMeta = async (): Promise<CSIFileMeta[]> => {
-  try {
-    const resp = await api.get<CSIFileMeta[]>('/uploads');
-    return resp.data;
-  } catch (err: any) {
-    if (err.response?.status === 404) return [];
-    throw err;
-  }
-};
+  const resp = await api.get<CSIFileMeta[]>('/uploads')
+  return resp.data
+}
 
 export const deleteUpload = async (id: string): Promise<void> => {
-  await api.delete(`/uploads/${id}`);
-};
+  await api.delete(`/uploads/${id}`)
+}
 
 export const fetchRuangan = async (): Promise<Ruangan[]> => {
-  const resp = await api.get<Ruangan[]>('/ruangan');
+  const resp = await api.get('/ruangan');
+  console.log('🛠️ fetchRuangan resp.data =', resp.data);
   return resp.data;
-};
+}
+
 
 export const renameUpload = async (id: string, new_name: string): Promise<CSIFileMeta> => {
   const resp = await api.put<CSIFileMeta>(`/uploads/${id}`, { new_name });  // Menggunakan new_name untuk parameter
   return resp.data;
 };
-
-
-export const fetchRoom = () => api.get<Ruangan[]>('/ruangan');
 
 export const createRoom = (room: RuanganCreate) =>
   api.post<RuanganCreate>('/ruangan', room);
@@ -156,7 +157,8 @@ export const uploadMethod = async (
 
 export const fetchMethods = async (): Promise<Methods[]> => {
   const resp = await api.get<Methods[]>('/methods');
-  return resp.data;
+  console.log('🛠️ fetchMethods resp.data =', resp.data);
+  return resp.data;  // <-- sekarang resp.data sudah array Methods yang benar
 };
 
 export const deleteMethod = async (method_id: string): Promise<void> => {
@@ -191,12 +193,11 @@ export async function localize(
   data_id: string,
   id_metode: string,
   id_ruangan: string
-): Promise<LocalizatioResponse> {
-  const resp = await api.post<LocalizatioResponse>('/localize', {
+): Promise<LocalizationResponse> {
+  const resp = await api.post<LocalizationResponse>('/localize', {
     id_data:    data_id,
     id_metode:  id_metode,
     id_ruangan: id_ruangan,
   });
   return resp.data;
 }
-
