@@ -9,6 +9,12 @@ venv/
 # Mengabaikan node_modules
 node_modules/
 
+# Mengabaikan file konfigurasi sistem
+.DS_Store
+
+# Mengabaikan file models
+models/
+
 # Mengabaikan file konfigurasi IDE
 .vscode/
 

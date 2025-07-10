@@ -87,8 +87,8 @@ const RoomSettingPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <RoomForm
                 initial={selectedRoom}
-                onCreate={dto => handleSave(dto)}
-                onUpdate={room => handleSave(room)}
+                onCreate={handleSave}
+                onUpdate={handleSave}
                 onCancel={() => setSelectedRoom(undefined)}
               />
               <HistoryRoomList

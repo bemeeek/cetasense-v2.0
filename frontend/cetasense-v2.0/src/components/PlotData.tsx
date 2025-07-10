@@ -24,7 +24,7 @@ export interface PlotData {
   };
   overallMean: number[];     // [3]
   subcarriers: number;       // misal 30
-  antennas: string[];        // ["Antena 1","Antena 2","Antena 3"]
+  antennas: string[];        // ["Channel 1","Channel 2","Channel 3"]
 }
 
 interface PlotDataProps {
@@ -70,7 +70,7 @@ const PlotDataComponent: React.FC<PlotDataProps> = ({ data }) => {
 
   const colors = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
 
-  // State untuk Snapshot per antena
+  // State untuk Snapshot per Channel
   const [activeSnapshot, setActiveSnapshot] = React.useState<
     "snapshots1" | "snapshots2" | "snapshots3"
   >("snapshots1");
@@ -80,7 +80,7 @@ const PlotDataComponent: React.FC<PlotDataProps> = ({ data }) => {
     "snapshots3",
   ];
 
-  // State untuk Bar Chart per antena
+  // State untuk Bar Chart per Channel
   const [activeMean, setActiveMean] = React.useState<
     "meanAnt1" | "meanAnt2" | "meanAnt3"
   >("meanAnt1");
@@ -106,7 +106,7 @@ const PlotDataComponent: React.FC<PlotDataProps> = ({ data }) => {
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-      {/* — Plot rata-rata per paket per antena — */}
+      {/* — Plot rata-rata per paket per Channel — */}
       <div className={cardClass}>
         <h3 className="font-semibold mb-2">Rata-Rata Amplitudo per Paket</h3>
         <div className="flex gap-2 mb-4">
@@ -152,19 +152,19 @@ const PlotDataComponent: React.FC<PlotDataProps> = ({ data }) => {
       </div>
 
 
-      {/* 2) Plot Bar Chart per Antena */}
+      {/* 2) Plot Bar Chart per Channel */}
       <div className={cardClass}>
         <div className="flex items-center mb-6">
           <div className="w-1 h-6 bg-green-500 rounded-full mr-3"></div>
           <h3 className="text-xl font-semibold text-gray-800">
-            Analisis Per Antena
+            Analisis Per Channel
           </h3>
         </div>
         <p className="text-gray-600 text-sm mb-4">
-          Distribusi amplitudo per antena secara detail
+          Distribusi amplitudo per Channel secara detail
         </p>
         <div className="mb-6 flex flex-wrap gap-2">
-          {["Antena 1", "Antena 2", "Antena 3"].map((label, i) => {
+          {["Channel 1", "Channel 2", "Channel 3"].map((label, i) => {
             const meanKey = (`meanAnt${i + 1}` as "meanAnt1" | "meanAnt2" | "meanAnt3");
             return (
               <TabButton
@@ -207,7 +207,7 @@ const PlotDataComponent: React.FC<PlotDataProps> = ({ data }) => {
         />
       </div>
 
-      {/* 3) Snapshot Temporal per Antena */}
+      {/* 3) Snapshot Temporal per Channel */}
       <div className={`${cardClass} xl:col-span-2`}>
         <div className="flex items-center mb-6">
           <div className="w-1 h-6 bg-purple-500 rounded-full mr-3"></div>
@@ -219,7 +219,7 @@ const PlotDataComponent: React.FC<PlotDataProps> = ({ data }) => {
           Tampilan evolusi sinyal pada paket awal, tengah, dan akhir
         </p>
         <div className="mb-6 flex flex-wrap gap-2">
-          {["Antena 1", "Antena 2", "Antena 3"].map((label, i) => (
+          {["Channel 1", "Channel 2", "Channel 3"].map((label, i) => (
             <TabButton
               key={label}
               active={activeSnapshot === snapshotOptions[i]}
@@ -285,7 +285,7 @@ const PlotDataComponent: React.FC<PlotDataProps> = ({ data }) => {
           </h3>
         </div>
         <p className="text-gray-600 text-sm mb-4">
-          Metrik agregat di semua antena
+          Metrik agregat di semua Channel
         </p>
         <div className="flex justify-center">
           <div className="w-full max-w-2xl">
@@ -309,7 +309,7 @@ const PlotDataComponent: React.FC<PlotDataProps> = ({ data }) => {
                 ...baseLayout,
                 xaxis: {
                   ...baseLayout.xaxis,
-                  title: { text: "Antena", font: { size: 14, color: "#374151" } },
+                  title: { text: "Channel", font: { size: 14, color: "#374151" } },
                 },
                 yaxis: {
                   ...baseLayout.yaxis,

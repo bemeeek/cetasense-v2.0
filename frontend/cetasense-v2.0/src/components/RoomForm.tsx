@@ -13,6 +13,7 @@ const RoomForm: React.FC<RoomFormProps> = ({
   initial,
   onCreate,
   onUpdate,
+  onCancel,
 }) => {
   // State management
   const [nama, setNama] = useState(initial?.nama_ruangan ?? '');
@@ -91,6 +92,7 @@ const RoomForm: React.FC<RoomFormProps> = ({
     try {
       if (initial) await onUpdate({ id: initial.id, ...payload });
       else await onCreate(payload);
+      onCancel(); // Reset form after submit
     } catch {
       setError('Gagal menyimpan ruangan.');
     } finally {

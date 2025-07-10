@@ -14,18 +14,42 @@ import (
 func CacheMiddleware(c *cache.Client, ttl time.Duration) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// skip SSE / non-GET
-			if strings.HasPrefix(r.Header.Get("Accept"), "text/event-stream") ||
-				r.Method != http.MethodGet {
+
+			if strings.HasPrefix(r.Header.Get("Accept"), "text/event-stream") {
 				next.ServeHTTP(w, r)
 				return
 			}
 
+			if r.Method != http.MethodGet {
+				next.ServeHTTP(w, r)
+
+				path := r.URL.Path
+				if idx := strings.Index(path, "?"); idx > 0 {
+					path = path[:idx]
+				}
+				listpath := path
+				if slash := strings.LastIndex(path, "/"); slash > 0 {
+					listpath = path[:slash]
+				}
+				patterns := []string{
+					fmt.Sprintf("cache:GET:%s", path),
+					fmt.Sprintf("cache:GET:%s", listpath),
+				}
+				for _, pat := range patterns {
+					if keys, err := c.Keys(r.Context(), pat); err == nil {
+						for _, key := range keys {
+							c.Del(r.Context(), key)
+						}
+					}
+				}
+				return
+			}
 			key := fmt.Sprintf("cache:%s:%s", r.Method, r.URL.RequestURI())
 			if blob, err := c.Get(r.Context(), key); err == nil && len(blob) > 0 {
 				// cache hit: kita tahu ini JSON, tapi jika header Content-Type
 				// asli tersimpan di cache, boleh restore juga.
 				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("Content-Type", "application/javascript")
 				w.Header().Set("X-Cache", "HIT")
 				w.Write(blob)
 				return

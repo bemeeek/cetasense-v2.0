@@ -31,3 +31,11 @@ func (c *Client) Get(ctx context.Context, key string) ([]byte, error) {
 func (c *Client) Set(ctx context.Context, key string, val []byte, ttl time.Duration) error {
 	return c.rdb.Set(ctx, key, val, ttl).Err()
 }
+
+func (c *Client) Del(ctx context.Context, key string) error {
+	return c.rdb.Del(ctx, key).Err()
+}
+
+func (c *Client) Keys(ctx context.Context, pattern string) ([]string, error) {
+	return c.rdb.Keys(ctx, pattern).Result()
+}
