@@ -1,0 +1,40 @@
+# nginx-loadbalancer/dockerfile (FIXED)
+
+FROM nginx:alpine
+
+# Install curl untuk health checks
+RUN apk add --no-cache curl
+
+# Create necessary directories dengan proper permissions
+RUN mkdir -p /var/cache/nginx/client_temp \
+    /var/cache/nginx/proxy_temp \
+    /var/cache/nginx/fastcgi_temp \
+    /var/cache/nginx/uwsgi_temp \
+    /var/cache/nginx/scgi_temp \
+    /var/log/nginx \
+    /var/run/nginx
+
+# Set ownership dan permissions
+RUN chown -R nginx:nginx /var/cache/nginx \
+    /var/log/nginx \
+    /var/run/nginx \
+    /etc/nginx
+
+# Copy konfigurasi load balancer
+COPY nginx-loadbalancer.conf /etc/nginx/nginx.conf
+
+# Set proper permissions untuk config
+RUN chown nginx:nginx /etc/nginx/nginx.conf
+
+# Switch ke nginx user untuk security
+# USER nginx
+
+# Expose port 80
+EXPOSE 80
+
+# Health check untuk memastikan load balancer ready
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost/health || exit 1
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]

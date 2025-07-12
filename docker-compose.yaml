@@ -1,18 +1,42 @@
 services:
 
-  nginx:
+  nginx-loadbalancer:
+      build:
+        context: ./nginx-loadbalancer
+        dockerfile: dockerfile
+      image: nginx-loadbalancer:latest
+      container_name: nginx-loadbalancer
+      restart: unless-stopped
+      ports:
+        - "80:80"
+      depends_on:
+        - frontend
+        - go_gateway
+        - py_api
+      networks:
+        - app-network
+      volumes:
+        - nginx_logs:/var/log/nginx
+
+  frontend:
     build:
       context: ./frontend/cetasense-v2.0
       dockerfile: dockerfile
-    image: frontend-nginx:latest
+    image: frontend-react:latest
+    container_name: frontend-react
     restart: unless-stopped
-    ports:
-      - "80:80"
-    depends_on:
-      - go_gateway
-      - py_api
+    expose:
+      - "80"
     networks:
-      - app-network
+      app-network:
+        aliases:
+          - frontend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
 
   mariadb:
@@ -81,7 +105,8 @@ services:
   go_gateway:
     build:
       context: ./backend
-    # container_name: go_gateway
+    # container_name: go_gateway_1
+    image: go_gateway:latest
     restart: on-failure
     env_file:
       - ./.env
@@ -93,8 +118,8 @@ services:
       - DB_USER=root
       - DB_PASSWORD=Rafi111703
       - DB_NAME=bismillahta
-    # ports:
-    #   - "8081:8081"
+    expose:
+      - "8081"
     depends_on:
       - mariadb
       - minio
@@ -104,12 +129,14 @@ services:
       app-network:
         aliases:
           - go_gateway
+    
   
   py_api:
     build:
       context: ./backend-localization-py
       dockerfile: dockerfile
     # container_name: py_api
+    image: py_api:latest
     restart: unless-stopped
     env_file:
       - ./.env
@@ -119,11 +146,10 @@ services:
       - DB_USER=root
       - DB_PASSWORD=Rafi111703
       - DB_NAME=bismillahta
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
-    # ports:
-    #   - "8001:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    expose:
+      - "8000"
     depends_on:
-      - go_gateway
       - mariadb
       - minio
       - redis
@@ -133,10 +159,12 @@ services:
         aliases:
           - py_api
   
+
   rabbit_consumer:
     build:
       context: ./backend-localization-py
     # container_name: rabbit_consumer
+    image: rabbit_consumer:latest
     restart: unless-stopped
     env_file:
       - ./.env
@@ -158,6 +186,7 @@ services:
     build:
       context: ./backend-localization-py
     # container_name: celery_worker
+    image: celery_worker:latest
     restart: unless-stopped
     env_file:
       - ./.env
@@ -167,7 +196,7 @@ services:
       - DB_USER=root
       - DB_PASSWORD=Rafi111703
       - DB_NAME=bismillahta
-    command: celery -A app.tasks worker --loglevel=info --pool=prefork --concurrency=4
+    command: celery -A app.tasks worker --loglevel=info --pool=prefork --concurrency=2 --hostname=worker1@%h
     depends_on:
       - rabbitmq
       - redis
@@ -176,9 +205,13 @@ services:
     networks:
       - app-network
 
+ 
 networks:
   app-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
 
 volumes:
   mariadb_data:
@@ -188,4 +221,6 @@ volumes:
   redis_data:
     driver: local
   rabbitmq_data:
+    driver: local
+  nginx_logs:
     driver: local

@@ -210,7 +210,9 @@ def localize_task(self, job_id: str) -> Dict[str, Any]:
             csv_file.write(csv_bytes)
             csv_file_path = csv_file.name
         
-        with tempfile.NamedTemporaryFile(suffix=".pkl", delete=False) as model_file:
+        _, ext = os.path.splitext(model_path)
+        suffix = ext if ext.lower() in (".pkl", ".py") else ".pkl"
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as model_file:
             model_file.write(model_bytes)
             model_file_path = model_file.name
 

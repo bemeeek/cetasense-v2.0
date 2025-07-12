@@ -36,6 +36,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
+INSTANCE_ID = os.getenv("INSTANCE_ID", "py_api_unknown")
+
 # CORS configuration
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
@@ -72,45 +74,68 @@ def on_startup():
 
 app.add_event_handler("startup", on_startup)
 
-@app.get("/health", response_model=dict)
-def health_check():
-    """
-    Health check endpoint.
-    """
-    health_status = {
-        "status": "ok",
-        "timestamp": datetime.now().isoformat(),
-        "service": {}
+# Middleware untuk instance tracking di semua responses
+@app.middleware("http")
+async def add_instance_header(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Instance-ID"] = INSTANCE_ID
+    response.headers["X-Service-Type"] = "py_api"
+    return response
+
+# Health endpoint untuk load balancer
+@app.get("/localize/health")
+async def health_check(response: Response): 
+    # CRITICAL: Headers untuk nginx load balancer tracking
+    response.headers["X-Instance-ID"] = INSTANCE_ID
+    response.headers["X-Service-Type"] = "py_api"
+    
+    return {
+        "status": "healthy",
+        "service": "py_api",
+        "instance": INSTANCE_ID,
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "1.0.0"
     }
 
-    try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("SELECT 1")
-                result = cursor.fetchone()
-                if result:
-                    health_status["service"]["database"] = "ok"
-                else:
-                    health_status["service"]["database"] = "error"
-    except Exception as e:
-        logger.error(f"Database health check failed: {e}")
-        health_status["service"]["database"] = "error"
+# @app.get("/health", response_model=dict)
+# def health_check():
+#     """
+#     Health check endpoint.
+#     """
+#     health_status = {
+#         "status": "ok",
+#         "timestamp": datetime.now().isoformat(),
+#         "service": {}
+#     }
 
-    try:
-        redis_client.ping()
-        health_status["service"]["redis"] = "healthy"
-    except Exception as e:
-        logger.error(f"Redis health check failed: {e}")
-        health_status["service"]["redis"] = "unhealthy"
+#     try:
+#         with get_db_connection() as conn:
+#             with conn.cursor() as cursor:
+#                 cursor.execute("SELECT 1")
+#                 result = cursor.fetchone()
+#                 if result:
+#                     health_status["service"]["database"] = "ok"
+#                 else:
+#                     health_status["service"]["database"] = "error"
+#     except Exception as e:
+#         logger.error(f"Database health check failed: {e}")
+#         health_status["service"]["database"] = "error"
 
-    if consumer_thread and consumer_thread.is_alive():
-        health_status["service"]["rabbitmq_consumer"] = "healthy"
-    else:
-        health_status["service"]["rabbitmq_consumer"] = "unhealthy"
-        health_status["status"] = "degraded"
+#     try:
+#         redis_client.ping()
+#         health_status["service"]["redis"] = "healthy"
+#     except Exception as e:
+#         logger.error(f"Redis health check failed: {e}")
+#         health_status["service"]["redis"] = "unhealthy"
 
-    status_code = 200 if health_status["status"] == "ok" else 503
-    return Response(content=json.dumps(health_status), media_type="application/json", status_code=status_code)
+#     if consumer_thread and consumer_thread.is_alive():
+#         health_status["service"]["rabbitmq_consumer"] = "healthy"
+#     else:
+#         health_status["service"]["rabbitmq_consumer"] = "unhealthy"
+#         health_status["status"] = "degraded"
+
+#     status_code = 200 if health_status["status"] == "ok" else 503
+#     return Response(content=json.dumps(health_status), media_type="application/json", status_code=status_code)
 
 @app.post("/localize", response_model=LocalizeRequest, status_code=202)
 def enqueue(req: LocalizeRequest):

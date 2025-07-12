@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -63,6 +64,37 @@ func testRedisConnection(rdb *redis.Client) {
 	case <-timeout:
 		log.Println("⏰ Go test subscription timeout (this is normal)")
 	}
+}
+
+func setupHealthRoutes(router *mux.Router) {
+	router.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
+		instanceID := os.Getenv("INSTANCE_ID")
+		if instanceID == "" {
+			instanceID = "go_gateway_unknown"
+		}
+
+		// CRITICAL: Header untuk nginx load balancer tracking
+		w.Header().Set("X-Instance-ID", instanceID)
+		w.Header().Set("X-Service-Type", "go_gateway")
+		w.Header().Set("Content-Type", "application/json")
+
+		response := map[string]interface{}{
+			"status":    "healthy",
+			"service":   "go_gateway",
+			"instance":  instanceID,
+			"timestamp": time.Now().UTC(),
+			"version":   "1.0.0",
+		}
+
+		jsonResponse, err := json.Marshal(response)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error generating JSON: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write(jsonResponse)
+	}).Methods("GET")
 }
 
 func main() {
@@ -177,6 +209,8 @@ func main() {
 
 	// Global middleware
 	router.Use(loggingMiddleware, contentTypeMiddleware)
+
+	setupHealthRoutes(router)
 
 	// CORS
 	c := cors.New(cors.Options{

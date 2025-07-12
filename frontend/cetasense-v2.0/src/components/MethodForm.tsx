@@ -23,8 +23,8 @@ const MethodForm: React.FC<MethodFormProps> = ({
   const dragCounterRef = React.useRef<number>(0);
 
   const validateFile = (file: File): string | null => {
-    if (file.size > 10 * 1024 * 1024) {
-      return "File terlalu besar, maksimal 10MB.";
+    if (file.size > 20 * 1024 * 1024) {
+      return "File terlalu besar, maksimal 20MB.";
     }
     const ext = file.name.split('.').pop()?.toLowerCase();
     if (!ext || !['py', 'pkl'].includes(ext)) {
