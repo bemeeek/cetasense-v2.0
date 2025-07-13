@@ -6,6 +6,11 @@ interface Props {
   result: { x: number; y: number };
 }
 
+interface Size {
+  width: number;
+  height: number;
+}
+
 export const LocalizationResult: React.FC<Props> = ({ ruangan, result }) => {
   const {
     panjang,
@@ -17,15 +22,36 @@ export const LocalizationResult: React.FC<Props> = ({ ruangan, result }) => {
     nama_ruangan,
   } = ruangan;
 
-  const size = 500;
+  // Determine dynamic canvas size based on room aspect ratio
+  const maxSize = 500;
+  const ratio = panjang / lebar;
+  let width: number;
+  let height: number;
+  if (ratio >= 1) {
+    // wider than tall
+    width = maxSize;
+    height = maxSize / ratio;
+  } else {
+    // taller than wide
+    width = maxSize * ratio;
+    height = maxSize;
+  }
+
+  const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1);
+
   const maxDivisions = 10;
   const divX = Math.min(maxDivisions, Math.ceil(panjang));
   const divY = Math.min(maxDivisions, Math.ceil(lebar));
 
-  const toCartesianPct = (x: number, y: number) => ({
-    left: `${(x / panjang) * 100}%`,
-    bottom: `${(y / lebar) * 100}%`,
-  });
+const toCartesianPct = (x: number, y: number) => {
+  // pastikan 0 ≤ x/panjang ≤ 1; 0 ≤ y/lebar ≤ 1
+  const cx = clamp01(x / panjang);
+  const cy = clamp01(y / lebar);
+  return {
+    left:  `${cx * 100}%`,
+    bottom:`${cy * 100}%`,
+  };
+};
 
   const txPct = toCartesianPct(posisi_x_tx, posisi_y_tx);
   const rxPct = toCartesianPct(posisi_x_rx, posisi_y_rx);
@@ -76,28 +102,40 @@ const renderAxisLines = () => (
 );
 
 // Render the connection lines from TX/RX to subject
-const renderConnectionLines = (txPct: any, rxPct: any, subPct: any, _size: number) => (
-  <svg className="absolute inset-0 w-full h-full pointer-events-none z-5">
-    <line
-      x1={txPct.left}
-      y1={`${100 - parseFloat(txPct.bottom)}%`}
-      x2={subPct.left}
-      y2={`${100 - parseFloat(subPct.bottom)}%`}
-      stroke="rgba(236, 72, 153, 0.6)"
-      strokeWidth="2"
-      strokeDasharray="8,4"
-    />
-    <line
-      x1={rxPct.left}
-      y1={`${100 - parseFloat(rxPct.bottom)}%`}
-      x2={subPct.left}
-      y2={`${100 - parseFloat(subPct.bottom)}%`}
-      stroke="rgba(245, 158, 11, 0.6)"
-      strokeWidth="2"
-      strokeDasharray="8,4"
-    />
-  </svg>
-);
+const renderConnectionLines = (
+  fromPct: { left: string; bottom: string },
+  toPct:   { left: string; bottom: string },
+  color: 'magenta' | 'orange',
+  size: Size
+) => {
+  // Parse % → angka
+  const fx = (parseFloat(fromPct.left) / 100) * size.width;
+  const fy = size.height - (parseFloat(fromPct.bottom) / 100) * size.height;
+  const tx = (parseFloat(toPct.left)   / 100) * size.width;
+  const ty = size.height - (parseFloat(toPct.bottom) / 100) * size.height;
+
+  return (
+    <svg
+      className="absolute inset-0 pointer-events-none z-10"
+      width={size.width}
+      height={size.height}
+    >
+      <line
+        x1={fx} y1={fy}
+        x2={tx} y2={ty}
+        stroke={ color==='magenta'
+          ? 'rgba(236,72,153,0.6)'
+          : 'rgba(245,158,11,0.6)'
+        }
+        strokeWidth={2}
+        strokeDasharray="8 4"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+        shapeRendering="crispEdges"
+      />
+    </svg>
+  );
+};
 
 // Render markers for TX, RX, and Subject
 const renderMarkers = (txPct: any, rxPct: any, subPct: any, result: { x: number; y: number }) => (
@@ -272,12 +310,13 @@ const Legend = () => (
       {/* Canvas */}
       <div className="flex-shrink-0">
         <div
-          className="relative bg-white border-2 border-gray-300 shadow-lg rounded-xl"
-          style={{ width: size, height: size }}
+          className="relative bg-white border-2 border-gray-300 shadow-lg rounded-xl overflow-hidden"
+          style={{ width: `${width}px`, height: `${height}px` }}
         >
           {renderCartesianGrid(divX, divY, panjang, lebar)}
           {renderAxisLines()}
-          {renderConnectionLines(txPct, rxPct, subPct, size)}
+          {renderConnectionLines(txPct, subPct, 'magenta', { width, height })}
+          {renderConnectionLines(rxPct, subPct, 'orange', { width, height })}
           {renderMarkers(txPct, rxPct, subPct, result)}
           {/* Origin & Corners */}
           <div className="absolute bottom-2 left-2 text-sm font-bold text-green-600 bg-white/90 px-2 py-1 rounded border">

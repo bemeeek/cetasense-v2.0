@@ -7,6 +7,8 @@ interface Props {
   data?: CSIFileMeta;
   results: { run1: { x: number; y: number } | null; run2: { x: number; y: number } | null; }
 }
+
+
 export const ComparisonResult: React.FC<Props> = ({ ruangan, results }) => {
   const {
     panjang,
@@ -18,15 +20,35 @@ export const ComparisonResult: React.FC<Props> = ({ ruangan, results }) => {
     nama_ruangan,
   } = ruangan;
 
-  const size = 500;
+  const maxSize = 500;
+  const ratio = panjang / lebar;
+  let width: number;
+  let height: number;
+  if (ratio >= 1) {
+    // wider than tall
+    width = maxSize;
+    height = maxSize / ratio;
+  } else {
+    // taller than wide
+    width = maxSize * ratio;
+    height = maxSize;
+  }
+
+  const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1);
+
+// Ganti toCartesianPct lama dengan:
+  const toCartesianPct = (x: number, y: number) => {
+    const nx = clamp01(x / panjang);
+    const ny = clamp01(y / lebar);
+    return {
+      left:   `${nx * 100}%`,
+      bottom: `${ny * 100}%`,
+    };
+  };
+
   const maxDivisions = 10;
   const divX = Math.min(maxDivisions, Math.ceil(panjang));
   const divY = Math.min(maxDivisions, Math.ceil(lebar));
-
-  const toCartesianPct = (x: number, y: number) => ({
-    left: `${(x / panjang) * 100}%`,
-    bottom: `${(y / lebar) * 100}%`,
-  });
 
   const txPct = toCartesianPct(posisi_x_tx, posisi_y_tx);
   const rxPct = toCartesianPct(posisi_x_rx, posisi_y_rx);
@@ -37,6 +59,26 @@ export const ComparisonResult: React.FC<Props> = ({ ruangan, results }) => {
     { label: 'A', result: results.run1, color: 'from-red-400 to-red-600' },
     { label: 'B', result: results.run2, color: 'from-green-400 to-green-600' },
   ];
+
+  const renderSubjectMarker = (x: number, y: number, label: string) => {
+  console.log(label, x, y);  // Log koordinat
+  const { left, bottom } = toCartesianPct(x, y);
+  return (
+    <div
+          key={label}
+          className="absolute"
+          style={{
+            left,
+            bottom,
+            transform: 'translate(-50%,-50%)'
+          }}
+        >
+      <div className={`w-10 h-10 bg-gradient-to-br ${label === 'A' ? 'from-red-400 to-red-600' : 'from-green-400 to-green-600'} rounded-full shadow-2xl border-4 border-white flex items-center justify-center`}>
+        <span className="text-white font-bold text-lg">{label}</span>
+      </div>
+    </div>
+  );
+};
 
   return (
     <div className="p-6 bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl shadow-lg">
@@ -55,7 +97,7 @@ export const ComparisonResult: React.FC<Props> = ({ ruangan, results }) => {
        <div className="flex flex-col lg:flex-row items-start gap-8">
         {/* Canvas */}
         <div className="flex-shrink-0">
-          <div style={{ width: size, height: size }} className="relative bg-white border-2 border-gray-300 shadow-lg rounded-xl overflow-hidden">
+          <div style={{  width: `${width}px`, height: `${height}px` }} className="relative bg-white border-2 border-gray-300 shadow-lg rounded-xl overflow-hidden">
             {renderCartesianGrid(divX, divY)}
             {renderAxisLines()}
             {markers.map(({ label, result }) =>
@@ -335,17 +377,5 @@ const renderConnectionLines = (
   </svg>
 );
 
-const renderSubjectMarker = (x: number, y: number, label: string) => {
-  console.log(label, x, y);  // Log koordinat
-  return (
-    <div
-      key={label + '-subj'}
-      className="absolute"
-      style={{ left: `${(x / 1) * 100}%`, bottom: `${(y / 1) * 100}%`, transform: 'translate(-50%,50%)' }}
-    >
-      <div className={`w-10 h-10 bg-gradient-to-br ${label === 'A' ? 'from-red-400 to-red-600' : 'from-green-400 to-green-600'} rounded-full shadow-2xl border-4 border-white flex items-center justify-center`}>
-        <span className="text-white font-bold text-lg">{label}</span>
-      </div>
-    </div>
-  );
-};
+
+
