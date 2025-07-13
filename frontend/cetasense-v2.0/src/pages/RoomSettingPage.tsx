@@ -22,9 +22,10 @@ const RoomSettingPage: React.FC = () => {
   const loadRooms = async () => {
     try {
       const resp = await fetchRuangan();
-      setRooms(resp);
+      setRooms(resp ?? []);
     } catch {
       setError('Gagal memuat data ruangan.');
+      setRooms([])
     }
   };
 

@@ -101,9 +101,9 @@ export const deleteUpload = async (id: string): Promise<void> => {
 }
 
 export const fetchRuangan = async (): Promise<Ruangan[]> => {
-  const resp = await api.get('/ruangan');
+  const resp = await api.get<Ruangan[]>('/ruangan');
   console.log('🛠️ fetchRuangan resp.data =', resp.data);
-  return resp.data;
+  return resp.data ?? [];
 }
 
 
