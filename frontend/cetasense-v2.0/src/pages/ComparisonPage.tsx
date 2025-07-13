@@ -33,7 +33,6 @@ export const ComparisonPage: React.FC = () => {
   // 3) Results & loading
   const [results, setResults] = useState<{ run1: { x: number; y: number } | null; run2: { x: number; y: number } | null }>({ run1: null, run2: null });
 
-
   // 4) SSE refs for cleanup
   const sse = useRef<{ run1: EventSource | null; run2: EventSource | null }>({
     run1: null,
@@ -63,60 +62,65 @@ export const ComparisonPage: React.FC = () => {
   }, []);
 
   // 6) Handle changes in form data
-        const handleChange = (
-        run: 'run1' | 'run2',
-        field: 'data' | 'ruangan' | 'method',
-        value: string
-        ) => {
-        setParams(prev => {
-            const updatedParams = { ...prev, [run]: { ...prev[run], [field]: value } };
+  const handleChange = (
+    run: 'run1' | 'run2',
+    field: 'data' | 'ruangan' | 'method',
+    value: string
+  ) => {
+    setParams(prev => {
+      const updatedParams = { ...prev, [run]: { ...prev[run], [field]: value } };
 
-            // Ketika run1 diubah, salin nilai ke run2 untuk field data dan ruangan
-            if (run === 'run1' && (field === 'data' || field === 'ruangan')) {
-            updatedParams.run2[field] = value;  // Menyalin nilai dari run1 ke run2
-            }
+      // Ketika run1 diubah, salin nilai ke run2 untuk field data dan ruangan
+      if (run === 'run1' && (field === 'data' || field === 'ruangan')) {
+        updatedParams.run2[field] = value;  // Menyalin nilai dari run1 ke run2
+      }
 
-            return updatedParams;
-        });
-        };
+      return updatedParams;
+    });
+  };
 
   // 7) Start comparison process
-const startComparison = async () => {
-  setJobStatus('queued');
-  setResults({ run1: null, run2: null });
+  const startComparison = async () => {
+    setJobStatus('queued');
+    setResults({ run1: null, run2: null });
 
-  // Trigger both localization jobs
-  const respA = await localize(params.run1.data, params.run1.method, params.run1.ruangan);
-  const respB = await localize(params.run2.data, params.run2.method, params.run2.ruangan);
+    // Trigger both localization jobs
+    const respA = await localize(params.run1.data, params.run1.method, params.run1.ruangan);
+    const respB = await localize(params.run2.data, params.run2.method, params.run2.ruangan);
 
-  // Subscribe to both SSE streams
-  (['run1', 'run2'] as const).forEach((run) => {
-    const jobId = run === 'run1' ? respA.job_id : respB.job_id;
-    const es = listenLocalizationResult(jobId, (msg) => {
-      console.log(run, msg); // Add logging to check if both runs are received
-      if (msg.status==='running') {
-        setJobStatus('running');
-      }
-      if (msg.status === 'done') {
-        setResults(prev => {
-          const next = { ...prev, [run]: { x: msg.hasil_x!, y: msg.hasil_y! } };
-          // baru set jadi DONE kalau kedua run1 & run2 sudah ada hasil
-          if (next.run1 && next.run2) {
-            setJobStatus('done');
-          }
-          return next;
-        });
-        es.close();
-      }
-      if (msg.status === 'failed') {
-        setJobStatus('failed');
-        es.close();
-      }
+    // Subscribe to both SSE streams
+    (['run1', 'run2'] as const).forEach((run) => {
+      const jobId = run === 'run1' ? respA.job_id : respB.job_id;
+      const es = listenLocalizationResult(jobId, (msg) => {
+        console.log(run, msg); // Add logging to check if both runs are received
+        if (msg.status==='running') {
+          setJobStatus('running');
+        }
+        if (msg.status === 'done') {
+          setResults(prev => {
+            const next = { ...prev, [run]: { x: msg.hasil_x!, y: msg.hasil_y! } };
+            // baru set jadi DONE kalau kedua run1 & run2 sudah ada hasil
+            if (next.run1 && next.run2) {
+              setJobStatus('done');
+            }
+            return next;
+          });
+          es.close();
+        }
+        if (msg.status === 'failed') {
+          setJobStatus('failed');
+          es.close();
+        }
+      });
+      sse.current[run] = es;
     });
-    sse.current[run] = es;
-  });
-};
+  };
 
+  // Helper function untuk mendapatkan nama method berdasarkan ID
+  const getMethodName = (methodId: string): string => {
+    const method = methodList.find(m => m.method_id === methodId);
+    return method ? method.method_name : 'Unknown Method';
+  };
 
   // Check if rooms match
   const room = ruanganList.find((r) => r.id === params.run1.ruangan);
@@ -143,43 +147,46 @@ const startComparison = async () => {
 
         <TabSwitcherData />
 
-      <div className="flex-1 flex-row items-center p-8 gap-4">
-        <ComparisonForm
-        dataList={dataList}
-        ruanganList={ruanganList}
-        methodList={methodList}
-        selectedData={params.run1.data}
-        selectedRuangan={params.run1.ruangan}
-        selectedAlgA={params.run1.method}
-        selectedAlgB={params.run2.method}
-        onChangeData={v => handleChange('run1', 'data', v)}
-        onChangeRuangan={v => handleChange('run1', 'ruangan', v)}
-        onChangeAlgA={v => handleChange('run1', 'method', v)}
-        onChangeAlgB={v => handleChange('run2', 'method', v)}
-        onChangeDataRun2={v => handleChange('run2', 'data', v)}  // For run2
-        onChangeRuanganRun2={v => handleChange('run2', 'ruangan', v)} // For run2
-        onSubmit={startComparison}
-        disabled={isLoading}
-        />
-        
-        <div className="flex flex-col mt-4 mb-5 gap-2">
+        <div className="flex-1 flex-row items-center p-8 gap-4">
+          <ComparisonForm
+            dataList={dataList}
+            ruanganList={ruanganList}
+            methodList={methodList}
+            selectedData={params.run1.data}
+            selectedRuangan={params.run1.ruangan}
+            selectedAlgA={params.run1.method}
+            selectedAlgB={params.run2.method}
+            onChangeData={v => handleChange('run1', 'data', v)}
+            onChangeRuangan={v => handleChange('run1', 'ruangan', v)}
+            onChangeAlgA={v => handleChange('run1', 'method', v)}
+            onChangeAlgB={v => handleChange('run2', 'method', v)}
+            onChangeDataRun2={v => handleChange('run2', 'data', v)}  // For run2
+            onChangeRuanganRun2={v => handleChange('run2', 'ruangan', v)} // For run2
+            onSubmit={startComparison}
+            disabled={isLoading}
+          />
+          
+          <div className="flex flex-col mt-4 mb-5 gap-2">
+            {isLoading && (
+              <LoadingIndicator />
+            )}
 
-        {isLoading && (
-          <LoadingIndicator />
-        )}
+            {jobStatus !== 'idle' && <StatusMessage status={jobStatus} />}
+          </div>
 
-        {jobStatus !== 'idle' && <StatusMessage status={jobStatus} />}
-        </div>
-
-
-        {room && (results.run1 || results.run2) && (
+          {/* UPDATE: Kirimkan method information ke ComparisonResult */}
+          {room && (results.run1 || results.run2) && (
             <ComparisonResult
-            ruangan={room}
-            results={{ run1: results.run1, run2: results.run2 }}
+              ruangan={room}
+              results={{ run1: results.run1, run2: results.run2 }}
+              methods={{
+                run1: getMethodName(params.run1.method),
+                run2: getMethodName(params.run2.method)
+              }}
             />
-        )}
-    </div>
-    </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
@@ -249,8 +256,5 @@ const StatusMessage: React.FC<{ status: string }> = ({ status }) => {
     </div>
   );
 };
-
-
-
 
 export default ComparisonPage;

@@ -11,9 +11,9 @@ import {
   type StatusResponse,
 } from '../services/api';
 import { LocalizationForm } from '../components/LocalizationForm';
-import { LocalizationResult } from '../components/LocalizationResult';
-import Sidebar from '../components/sidebar/sidebar'
-import { CheckCircleIcon, ClockIcon, ExclamationTriangleIcon, WifiIcon } from '@heroicons/react/24/outline'; 
+import LocalizationResult from '../components/LocalizationResult';
+import Sidebar from '../components/sidebar/sidebar';
+import { CheckCircleIcon, ClockIcon, ExclamationTriangleIcon, WifiIcon } from '@heroicons/react/24/outline';
 import TabSwitcherData from '../components/switchertab/TabSwitcherData';
 
 export const LocalizationPage: React.FC = () => {
@@ -23,108 +23,83 @@ export const LocalizationPage: React.FC = () => {
   const [selData, setSelData] = useState('');
   const [selRuangan, setSelRuangan] = useState('');
   const [selMethod, setSelMethod] = useState('');
-  // Removed unused jobId state
   const [jobStatus, setJobStatus] = useState<string | null>(null);
   const [result, setResult] = useState<{ x: number; y: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  
-  
   const sseRef = useRef<EventSource | null>(null);
 
-  // Fetch initial data
-    useEffect(() => {
-      const fetchData = async () => {
-        try {
-          const [files, rooms, methods] = await Promise.all([
-            fetchCSIFileMeta(),
-            fetchRuangan(),
-            fetchMethods(),
-          ]);
-          setDataList(files);
-          setRuanganList(rooms);
-          setMethodList(methods);
-        } catch (err) {
-          console.error('Gagal load init data:', err);
-        }
-      };
-      fetchData();
-    }, []);
+  // init fetch
   useEffect(() => {
-  console.log('🛠️ ruanganList di komponen =', ruanganList, 'isArray?', Array.isArray(ruanganList));
-}, [ruanganList]);
-
-  // Clean up SSE on unmount
-  useEffect(() => {
-    return () => {
-      sseRef.current?.close();
-    };
-  }, []);
-
-  const startLocalization = async () => {
-    resetState();
-
-    try {
-      const { job_id, status } = await localize(selData, selMethod, selRuangan);
-      setJobStatus(status);
-      listenForResults(job_id);
-    } catch {
-      setError('Gagal memulai proses lokalisasi');
-      setIsLoading(false);
+    async function init() {
+      try {
+        const [files, rooms, methods] = await Promise.all([
+          fetchCSIFileMeta(),
+          fetchRuangan(),
+          fetchMethods(),
+        ]);
+        setDataList(files);
+        setRuanganList(rooms);
+        setMethodList(methods);
+      } catch {
+        console.error('Gagal load init data');
+      }
     }
-  };
+    init();
+  }, []);
+  useEffect(() => () => sseRef.current?.close(), []);
 
-  const resetState = () => {
+  const reset = () => {
     setError(null);
     setResult(null);
     setJobStatus(null);
     setIsLoading(true);
   };
-
-  const listenForResults = (jobId: string) => {
-    const es = listenLocalizationResult(jobId, (data: StatusResponse) => {
-      setJobStatus(data.status);
-      if (data.status === 'done') {
-        setResult({ x: data.hasil_x!, y: data.hasil_y! });
-        setIsLoading(false);
-        es.close();
-      }
-      if (data.status === 'failed') {
-        setError('Lokalisasi gagal');
-        setIsLoading(false);
-        es.close();
-      }
-    });
-    sseRef.current = es;
+  const startLocalization = async () => {
+    reset();
+    try {
+      const { job_id, status } = await localize(selData, selMethod, selRuangan);
+      setJobStatus(status);
+      const es = listenLocalizationResult(job_id, (data: StatusResponse) => {
+        setJobStatus(data.status);
+        if (data.status === 'done') {
+          setResult({ x: data.hasil_x!, y: data.hasil_y! });
+          setIsLoading(false);
+          es.close();
+        }
+        if (data.status === 'failed') {
+          setError('Lokalisasi gagal');
+          setIsLoading(false);
+          es.close();
+        }
+      });
+      sseRef.current = es;
+    } catch {
+      setError('Gagal memulai');
+      setIsLoading(false);
+    }
   };
 
-  const selRoomObj = ruanganList.find(r => r.id === selRuangan);
+  const getMethodName = (methodId: string): string => {
+    const method = methodList.find(m => m.method_id === methodId);
+    return method ? method.method_name : 'Unknown Method';
+  };
+
+  const selRuanganObj = ruanganList.find(r => r.id === selRuangan);
 
   return (
     <div className="flex bg-gray-100 min-h-screen overflow-hidden">
-      {/* ← Sidebar */}
-      <aside className="flex-shrink-0">
-        <Sidebar />
-      </aside>
-
-      <div className="flex-1 items-center gap-4 flex-col">
-        {/* Header */}
+      <aside className="flex-shrink-0"><Sidebar /></aside>
+      <div className="flex-1 flex-col">
         <header className="flex items-center bg-white h-[122px] px-8 shadow-sm">
           <WifiIcon className="w-[52px] h-[52px]" />
           <div className="ml-6">
-            <h1 className="text-[23.5px] font-bold text-[#1c1c1c]">
-              Data Stream
-            </h1>
-            <p className="text-[17.2px]  text-[#7a7a7a]">
-              Laman Data Stream ini digunakan untuk melihat analisis data parameter CSI yang akan digunakan, melihat hasil sistem pemosisian subjek dalam ruang, dan membandingkan hasil dari dua algoritma yang berbeda.
-
-            </p>
+            <h1 className="text-[23.5px] font-bold">Data Stream</h1>
+            <p className="text-[17.2px] text-[#7a7a7a]">Laman ...</p>
           </div>
         </header>
-
-        < TabSwitcherData />
-
-        <div className="flex h-fit p-8 ">
+        <TabSwitcherData />
+        <div className="p-8 flex">
           <LocalizationForm
             dataList={dataList}
             ruanganList={ruanganList}
@@ -137,30 +112,21 @@ export const LocalizationPage: React.FC = () => {
             setSelectedMethod={setSelMethod}
             onSubmit={startLocalization}
             disabled={isLoading}
-            
           />
         </div>
-
-      {isLoading && (
-        <LoadingIndicator />
-      )}
-
-      {jobStatus && (
-        <StatusMessage status={jobStatus} />
-      )}
-      
-      {error && <ErrorMessage message={error} />}
-
-      <div className="flex-1 p-8 h-fit overflow-y-auto">
-
-      {selRoomObj && result && (
-        <LocalizationResult ruangan={selRoomObj} result={result} />
-      )}
+        {isLoading && <LoadingIndicator />}
+        {jobStatus && <StatusMessage status={jobStatus} />}
+        {error && <ErrorMessage message={error} />}
+        <div className="p-8">
+          {selRuanganObj && result && (
+            <LocalizationResult ruangan={selRuanganObj} result={result} methods={getMethodName(selMethod)} />
+          )}
+        </div>
       </div>
-    </div>
     </div>
   );
 };
+
 
 // Enhanced Loading Indicator Component
 const LoadingIndicator = () => (
