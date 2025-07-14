@@ -200,7 +200,7 @@ const LoadingIndicator = () => (
         <div className="animate-spin rounded-full h-6 w-6 border-t-[3px] border-blue-600 absolute top-0 left-0"></div>
       </div>
       <div>
-        <div className="text-sm font-semibold text-gray-800">Memproses Lokalisasi</div>
+        <div className="text-sm font-semibold text-gray-800">Memproses Pemosisian</div>
         <div className="text-xs text-gray-500">Harap tunggu...</div>
       </div>
     </div>

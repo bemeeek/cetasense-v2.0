@@ -68,7 +68,7 @@ export const LocalizationPage: React.FC = () => {
           es.close();
         }
         if (data.status === 'failed') {
-          setError('Lokalisasi gagal');
+          setError('Pemosisian gagal');
           setIsLoading(false);
           es.close();
         }
@@ -95,7 +95,8 @@ export const LocalizationPage: React.FC = () => {
           <WifiIcon className="w-[52px] h-[52px]" />
           <div className="ml-6">
             <h1 className="text-[23.5px] font-bold">Data Stream</h1>
-            <p className="text-[17.2px] text-[#7a7a7a]">Laman ...</p>
+            <p className="text-[17.2px] text-[#7a7a7a]">Laman Data Stream ini digunakan untuk melihat analisis data parameter CSI yang akan digunakan, melihat hasil sistem pemosisian subjek dalam ruang, dan membandingkan hasil dari dua algoritma yang berbeda.
+</p>
           </div>
         </header>
         <TabSwitcherData />
@@ -137,7 +138,7 @@ const LoadingIndicator = () => (
         <div className="animate-spin rounded-full h-6 w-6 border-t-[3px] border-blue-600 absolute top-0 left-0"></div>
       </div>
       <div>
-        <div className="text-sm font-semibold text-gray-800">Memproses Lokalisasi</div>
+        <div className="text-sm font-semibold text-gray-800">Memproses Pemosisian</div>
         <div className="text-xs text-gray-500">Harap tunggu...</div>
       </div>
     </div>

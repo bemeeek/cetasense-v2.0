@@ -111,17 +111,14 @@ const PlotDataComponent: React.FC<PlotDataProps> = ({ data }) => {
         <h3 className="font-semibold mb-2">Rata-Rata Amplitudo per Paket</h3>
         <div className="flex gap-2 mb-4">
           {data.antennas.map((ant,i) =>
-            <button
+            <TabButton
               key={ant}
-              onClick={()=>setActivePktAnt(i)}
-              className={
-                activePktAnt===i
-                  ? "bg-blue-600 text-white px-3 py-1 rounded"
-                  : "bg-gray-200 text-gray-700 px-3 py-1 rounded"
-              }
+              active={activePktAnt === i}
+              onClick={() => setActivePktAnt(i)}
+              color="blue"
             >
               {ant}
-            </button>
+            </TabButton>
           )}
         </div>
         <Plot

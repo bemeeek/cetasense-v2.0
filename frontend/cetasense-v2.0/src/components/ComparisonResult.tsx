@@ -91,7 +91,7 @@ export const ComparisonResult: React.FC<Props> = ({ ruangan, results, methods })
     <div className="p-6 bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl shadow-lg">
       {/* Header */}
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold mb-2 text-indigo-600">Perbandingan Hasil Lokalisasi</h2>
+        <h2 className="text-3xl font-bold mb-2 text-indigo-600">Perbandingan Hasil Pemosisian</h2>
         <p className="text-lg text-gray-700">
           Ruangan: <span className="font-semibold text-blue-500">{nama_ruangan}</span>
         </p>
