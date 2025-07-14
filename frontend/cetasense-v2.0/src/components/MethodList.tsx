@@ -1,28 +1,30 @@
+// src/components/MethodList.tsx
 import React, { useEffect, useState } from 'react';
-import { type Methods, deleteMethod } from '../services/api';
+import { type Methods, deleteMethod, renameMethod } from '../services/api';
 import deleteIcon from '../assets/delete.svg';
-import editIcon from '../assets/edit.svg';
+import editIcon   from '../assets/edit.svg';
 import { FolderOpenIcon } from '@heroicons/react/16/solid';
 
 interface MethodListProps {
   methods?: Methods[] | null;
   onMethodSelect: (method: Methods) => void;
   onMethodDelete: (methodId: string) => void;
+  onMethodRename: (methodId: string, newName: string) => void;  // pastikan ada
 }
 
 const MethodList: React.FC<MethodListProps> = ({
   methods,
-  onMethodDelete
+  onMethodDelete,
+  onMethodRename
 }) => {
   const list = methods ?? [];
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [editingMethodId, setEditingMethodId] = useState<string | null>(null); // Track which method is being edited
-  const [newName, setNewName] = useState<string>(''); // Store the new name for editing
+  const [selectedIds, setSelectedIds]       = useState<Set<string>>(new Set());
+  const [editingMethodId, setEditingMethodId] = useState<string | null>(null);
+  const [newName, setNewName]               = useState<string>('');
+  const [saving, setSaving]                 = useState(false);
 
   useEffect(() => {
-    if (list.length === 0) {
-      console.warn("No methods available to display.");
-    }
+    if (!list.length) console.warn("No methods available to display.");
   }, [list]);
 
   const toggleSelect = (id: string) => {
@@ -42,20 +44,24 @@ const MethodList: React.FC<MethodListProps> = ({
   };
 
   const handleSave = async () => {
-    if (!newName || newName.trim() === '') return; // Do nothing if name is empty
+    if (!editingMethodId || !newName.trim()) return;
+    setSaving(true);
     try {
-      // Logic for saving the updated name (this could be an API call as well)
-      // For now, we'll just simulate that the name is updated locally
-      setEditingMethodId(null); // Stop editing after successful update
+      await renameMethod(editingMethodId, newName);
+      onMethodRename(editingMethodId, newName);  // beri tahu parent
+      setEditingMethodId(null);
+      setNewName('');  // reset input
     } catch (err) {
       console.error(err);
       alert('Gagal mengganti nama.');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleCancel = () => {
-    setEditingMethodId(null); // Cancel editing
-    setNewName(''); // Reset new name input
+    setEditingMethodId(null);
+    setNewName('');
   };
 
   const allSelected = list.length > 0 && list.every(m => selectedIds.has(m.method_id));
@@ -90,10 +96,13 @@ const MethodList: React.FC<MethodListProps> = ({
 
       {/* Daftar */}
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        {list.map((method) => {
+        {list.map(method => {
           const isSelected = selectedIds.has(method.method_id);
           return (
-            <div key={method.method_id} className="flex items-center h-14 border rounded-lg px-4 hover:bg-gray-50">
+            <div
+              key={method.method_id}
+              className="flex items-center h-14 border rounded-lg px-4 hover:bg-gray-50"
+            >
               <div className="w-16 flex justify-center">
                 <input
                   type="checkbox"
@@ -102,29 +111,33 @@ const MethodList: React.FC<MethodListProps> = ({
                   className="w-5 h-5 text-blue-600 border-gray-300 rounded"
                 />
               </div>
+
               <div className="flex-1">
                 {editingMethodId === method.method_id ? (
                   <input
                     type="text"
                     value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    className="border px-2"
+                    onChange={e => setNewName(e.target.value)}
+                    className="border px-2 w-full"
+                    disabled={saving}
                   />
                 ) : (
                   method.method_name
                 )}
               </div>
+
               <div className="w-28 flex justify-center gap-2">
                 {isSelected && (
                   <>
+                    {/* Hapus */}
                     <button
                       onClick={async () => {
-                        if (window.confirm(`Apakah Anda yakin ingin menghapus metode ${method.method_name}?`)) {
+                        if (window.confirm(`Hapus metode ${method.method_name}?`)) {
                           try {
                             await deleteMethod(method.method_id);
                             onMethodDelete(method.method_id);
-                          } catch (err) {
-                            console.error('Gagal menghapus metode:', err);
+                          } catch (e) {
+                            console.error(e);
                           }
                         }
                       }}
@@ -133,18 +146,28 @@ const MethodList: React.FC<MethodListProps> = ({
                     >
                       <img src={deleteIcon} alt="Delete" className="w-5 h-5" />
                     </button>
+
+                    {/* Edit / Simpan */}
                     <button
-                      onClick={() => (editingMethodId === method.method_id ? handleSave() : handleEdit(method.method_id))}
-                      className="p-2 border rounded hover:bg-blue-50"
-                      title={editingMethodId === method.method_id ? "Simpan Nama" : "Edit Nama"}
+                      onClick={() =>
+                        editingMethodId === method.method_id
+                          ? handleSave()
+                          : handleEdit(method.method_id)
+                      }
+                      className="p-2 border rounded hover:bg-blue-50 disabled:opacity-50"
+                      disabled={saving && editingMethodId === method.method_id}
+                      title={editingMethodId === method.method_id ? "Simpan" : "Edit"}
                     >
                       <img src={editIcon} alt="Edit" className="w-5 h-5" />
                     </button>
+
+                    {/* Batal */}
                     {editingMethodId === method.method_id && (
                       <button
                         onClick={handleCancel}
                         className="p-2 border rounded hover:bg-gray-50"
                         title="Batal"
+                        disabled={saving}
                       >
                         Batal
                       </button>
@@ -159,6 +182,5 @@ const MethodList: React.FC<MethodListProps> = ({
     </div>
   );
 };
-
 
 export default MethodList;

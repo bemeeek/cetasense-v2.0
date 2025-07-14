@@ -17,4 +17,7 @@ func RegisterMethodsRoutes(r *mux.Router, methodsHandler *handlers.MethodsHandle
 
 	// Endpoint to delete a method by ID
 	r.HandleFunc("/api/methods/{id}", methodsHandler.DeleteMethod).Methods("DELETE")
+
+	// Endpoint to rename a method by ID
+	r.HandleFunc("/api/methods/{id}", methodsHandler.RenameMethod).Methods("PUT")
 }

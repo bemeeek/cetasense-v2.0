@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -194,4 +195,38 @@ func (h *MethodsHandler) DeleteMethod(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "Method and storage object deleted successfully"})
+}
+
+func (h *MethodsHandler) RenameMethod(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	methodID := vars["id"]
+	if methodID == "" {
+		respondError(w, http.StatusBadRequest, "Method ID is required")
+		return
+	}
+
+	var req struct {
+		NewName string `json:"new_name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("JSON decode error: %v", err)
+		respondError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
+		return
+	}
+
+	if req.NewName == "" {
+		respondError(w, http.StatusBadRequest, "New name is required")
+		return
+	}
+
+	// Update the method name in the repository
+	if err := h.repo.UpdateName(ctx, methodID, req.NewName); err != nil {
+		log.Printf("Rename error: %v", err)
+		respondError(w, http.StatusInternalServerError, "Failed to update method: "+fmt.Sprint(err))
+		return
+	}
+	log.Printf("Method updated successfully: %s to %s", methodID, req.NewName)
+
+	respondJSON(w, http.StatusOK, map[string]string{"message": "Method updated successfully"})
 }

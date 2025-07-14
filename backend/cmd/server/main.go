@@ -53,7 +53,10 @@ func testRedisConnection(rdb *redis.Client) {
 	ch := sub.Channel()
 
 	// Test publish
-	testMsg := `{"test":"connection","timestamp":"` + time.Now().Format(time.RFC3339) + `"}`
+	testMsg := map[string]interface{}{
+		"test":      "connection",
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
 	result := rdb.Publish(ctx, "test_channel", testMsg)
 	log.Printf("📡 Published test message, subscribers: %d", result.Val())
 

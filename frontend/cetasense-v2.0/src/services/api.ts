@@ -235,6 +235,14 @@ export const deleteMethod = async (method_id: string): Promise<void> => {
   await api.delete(`/methods/${method_id}`);
 };
 
+export const renameMethod = async (
+  method_id: string,
+  new_name: string
+): Promise<Methods> => {
+  const resp = await api.put<Methods>(`/methods/${method_id}`, { new_name });
+  return resp.data;
+};
+
 // ————————————————————————————————————————————————————————————————
 // Bagian Lokalizasi (Diperbarui)
 // ————————————————————————————————————————————————————————————————

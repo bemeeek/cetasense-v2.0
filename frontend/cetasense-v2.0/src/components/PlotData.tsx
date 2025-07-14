@@ -108,27 +108,30 @@ const PlotDataComponent: React.FC<PlotDataProps> = ({ data }) => {
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
       {/* — Plot rata-rata per paket per Channel — */}
       <div className={cardClass}>
-        <h3 className="font-semibold mb-2">Rata-Rata Amplitudo per Paket</h3>
+        <div className="flex items-center mb-6">
+          <div className="w-1 h-6 bg-blue-500 rounded-full mr-3"></div>
+          <h3 className="font-semibold mb-2">Rata-Rata Amplitudo per Paket</h3>
+        </div>
         <div className="flex gap-2 mb-4">
-          {data.antennas.map((ant,i) =>
+          {data.antennas.map((_, i) => (
             <TabButton
-              key={ant}
+              key={i}
               active={activePktAnt === i}
               onClick={() => setActivePktAnt(i)}
               color="blue"
             >
-              {ant}
+              {`Channel ${i + 1}`}
             </TabButton>
-          )}
+          ))}
         </div>
         <Plot
           data={[
             {
               x: Array.from({ length: data.avgPerPacket[0].length }, (_, i) => i + 1),
-              y: data.avgPerPacket[Number(activeMean.slice(-1)) - 1],
+              y: data.avgPerPacket[ activePktAnt ],
               type: "scatter" as const,
               mode: "lines",
-              name: data.antennas[Number(activeMean.slice(-1)) - 1],
+              name: data.antennas[ activePktAnt ],
               line: { color: "#14b8a6", width: 2 },
             },
           ]}
@@ -145,7 +148,6 @@ const PlotDataComponent: React.FC<PlotDataProps> = ({ data }) => {
           config={commonConfig}
           style={{ width: "100%", height: 300 }}
         />
-
       </div>
 
 

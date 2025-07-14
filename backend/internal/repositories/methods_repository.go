@@ -11,6 +11,10 @@ type MethodsRepository struct {
 	db *sql.DB
 }
 
+func (r *MethodsRepository) Rename(ctx context.Context, methodID string, name string) any {
+	panic("unimplemented")
+}
+
 func NewMethodsRepository(db *sql.DB) *MethodsRepository {
 	return &MethodsRepository{db: db}
 }
@@ -70,4 +74,18 @@ func (r *MethodsRepository) GetByID(ctx context.Context, id string) (*models.Met
 		return nil, err
 	}
 	return method, nil
+}
+
+func (r *MethodsRepository) UpdateName(ctx context.Context, id string, newName string) error {
+	stmt, err := r.db.PrepareContext(ctx, `
+		UPDATE metodelokalisasi
+		SET nama_metode = ?
+		WHERE id = ?`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.ExecContext(ctx, newName, id)
+	return err
 }

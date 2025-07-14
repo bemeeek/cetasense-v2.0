@@ -107,17 +107,24 @@ const MethodSettingPage: React.FC = () => {
               <Suspense fallback={
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-96 animate-pulse" />
               }>
-                <MethodList
-                  methods={methods}
-                  onMethodSelect={(method) => {
-                    console.log("Selected method:", method);
-                  }}
-                  onMethodDelete={async (method_id) => {
-                    setMethods((prev) => prev.filter((m) => m.method_id !== method_id));
-                    // Clear cache when method deleted
-                    sessionStorage.removeItem('methods-cache');
-                  }}
-                />
+                 <MethodList
+                    methods={methods}
+                    onMethodSelect={() => {}}
+                    onMethodDelete={(id) => {
+                      setMethods(prev => prev.filter(m => m.method_id !== id));
+                      sessionStorage.removeItem('methods-cache');
+                    }}
+                    onMethodRename={(id, newName) => {
+                      setMethods(prev =>
+                        prev.map(m =>
+                          m.method_id === id
+                            ? { ...m, method_name: newName }
+                            : m
+                        )
+                      );
+                      sessionStorage.removeItem('methods-cache');
+                    }}
+                  />
               </Suspense>
             </div>
           )}
