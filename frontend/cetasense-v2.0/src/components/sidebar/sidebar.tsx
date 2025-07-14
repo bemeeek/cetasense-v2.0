@@ -5,7 +5,8 @@ import { NavLink, useLocation } from 'react-router-dom'
 import HomeIcon from '../../assets/sidebar-home.svg'
 import DataIcon from '../../assets/sidebar-data.svg'
 import SettingsIcon from '../../assets/sidebar-setting.svg'
-import UnionIcon from '../../assets/ai-settings-spark--cog-gear-settings-machine-artificial-intelligence.svg'
+import CetaSenseIcon from '../../assets/Frame-16.svg'
+// import UnionIcon from '../../assets/ai-settings-spark--cog-gear-settings-machine-artificial-intelligence.svg'
 
 const menu = [
   { icon: HomeIcon, label: 'Home', to: '/home' },
@@ -36,7 +37,7 @@ const Sidebar: React.FC = () => {
           <div className="flex items-center w-full px-4">
             <div className="flex items-center justify-center w-10 h-10 flex-shrink-0">
               <img 
-                src={UnionIcon} 
+                src={CetaSenseIcon} 
                 alt="Logo" 
                 className="w-8 h-8 rounded-full" 
               />
@@ -51,7 +52,7 @@ const Sidebar: React.FC = () => {
         ) : (
           <div className="flex items-center justify-center w-full h-full">
             <img 
-              src={UnionIcon} 
+              src={CetaSenseIcon} 
               alt="Logo" 
               className="w-8 h-8 rounded-full" 
             />
