@@ -16,6 +16,7 @@ import (
 	"cetasense-v2.0/config"
 	"cetasense-v2.0/database"
 	"cetasense-v2.0/internal/handlers"
+	"cetasense-v2.0/internal/metrics"
 	"cetasense-v2.0/internal/repositories"
 	"cetasense-v2.0/internal/routes"
 	"cetasense-v2.0/middleware"
@@ -151,6 +152,11 @@ func main() {
 		}
 	}()
 
+	// init metrics file
+	metrics.Init("metrics.csv")
+	metrics.InitFrontendLogger("frontend_metrics.csv")
+	metrics.InitSteps("step_metrics.csv")
+
 	// ─── 5) Repositories & Handlers ───────────────────────────────────────
 	ruanganRepo := repositories.NewRuanganRepository(db)
 	filterRepo := repositories.NewFilterRepository(db)
@@ -169,6 +175,10 @@ func main() {
 
 	// ─── 6) Router & Middleware ──────────────────────────────────────────
 	router := mux.NewRouter()
+
+	router.Use(middleware.LoggingJSON)
+	router.Use(middleware.TTFB)
+	router.Use(middleware.TimingMiddleware)
 
 	// Application routes
 	routes.RegisterRoomRoutes(router, roomHandler)
@@ -190,8 +200,11 @@ func main() {
 		fmt.Fprintln(w, "OK")
 	})
 
+	router.HandleFunc("/api/log_frontend", handlers.HandleFrontendLog).Methods("POST")
+
 	cacheClient := cache.NewClient(redisAddr, cfg.RedisDB)
-	router.Use(middleware.CacheMiddleware(cacheClient, 5*time.Minute)) // Set cache TTL to 5 minutes
+	// router.Use(middleware.CacheMiddleware(cacheClient, 5*time.Minute)) // Set cache TTL to 5 minutes
+	// router.Use(loggingMiddleware, contentTypeMiddleware)
 
 	// Test di main.go
 	log.Printf("LocalizationHandler function: %v", handlers.LocalizationHandler)
@@ -208,6 +221,11 @@ func main() {
 	})
 
 	// Global middleware
+	router.Use(middleware.RequestID)
+	router.Use(middleware.TTFB)
+	router.Use(middleware.LoggingJSON)
+	router.Use(middleware.TimingMiddleware)
+	router.Use(middleware.CacheMiddleware(cacheClient, 5*time.Minute)) // Set cache TTL to 5 minutes
 	router.Use(loggingMiddleware, contentTypeMiddleware)
 
 	setupHealthRoutes(router)

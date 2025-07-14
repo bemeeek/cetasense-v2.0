@@ -69,6 +69,17 @@ func CacheMiddleware(c *cache.Client, ttl time.Duration) func(http.Handler) http
 	}
 }
 
+// TimingMiddleware exposes Resource Timing headers so browser dapat baca TTFB
+func TimingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// izinkan Resource Timing API baca timing server
+		w.Header().Set("Timing-Allow-Origin", "*")
+		// expose X-Request-Id agar interceptor frontend bisa baca reqID
+		w.Header().Add("Access-Control-Expose-Headers", "X-Request-Id, Timing-Allow-Origin")
+		next.ServeHTTP(w, r)
+	})
+}
+
 // captureWriter: ganti ResponseWriter asli
 type captureWriter struct {
 	header http.Header

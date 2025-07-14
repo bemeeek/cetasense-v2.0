@@ -1,4 +1,5 @@
-import axios from 'axios';
+import axios, { type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios';
+import { sendFrontendMetric } from "./metrics";  // ← pastikan path-nya benar
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -7,6 +8,75 @@ export const api = axios.create({
   },
   timeout: 10000,
 });
+
+// —————————————————————————————————————————————————
+// INTERCEPTOR: CAPTURE TTFB & TTLB
+// —————————————————————————————————————————————————
+interface Metadata { startTime: number }
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  // simpan waktu mulai
+  (config as any).metadata = { startTime: performance.now() };
+  return config;
+});
+
+api.interceptors.response.use((response) => {
+  // 1) TTLB
+  const start = (response.config as any).metadata?.startTime ?? performance.now();
+  const ttlb = performance.now() - start;
+
+  // 2) TTFB via Server Timing header
+  let ttfb = NaN;
+  const serverTiming = response.headers['server-timing'];
+  if (serverTiming) {
+    // Parsing Server-Timing header, misalnya "ttfb;dur=123.45"
+    const match = /ttfb;dur=(\d+\.?\d*)/.exec(serverTiming);
+    if (match) {
+      ttfb = parseFloat(match[1]);
+    }
+  }
+
+  // 3) reqID
+  const reqID = response.headers['x-request-id'] ?? '';
+
+  // 4) log di console
+  console.log(
+    `[FETCH] ${response.config.method?.toUpperCase()} ${response.config.url}` +
+    ` reqID=${reqID}` +
+    ` TTFB=${isNaN(ttfb) ? 'n/a' : ttfb.toFixed(2)}ms` +
+    ` TTLB=${ttlb.toFixed(2)}ms`
+  );
+
+  const route = new URL(response.config.url!, window.location.origin).pathname;
+
+  // 5) kirim metrik
+  sendFrontendMetric({
+    reqID:   reqID,
+    type:    'fetch',
+    route:   route,
+    ttfb_ms: ttfb,
+    ttlb_ms: ttlb,
+  });
+
+    // 6) clear old resource timing entries
+  if ('clearResourceTimings' in performance) {
+   performance.clearResourceTimings();
+  }
+  
+  return response;
+
+  },
+  (error) => {
+    // log juga bila error
+    const cfg = (error.config as AxiosRequestConfig & { metadata?: Metadata }) || {};
+    const start = cfg.metadata?.startTime ?? performance.now();
+    const ttlb = performance.now() - start;
+    console.log(
+      `${new Date().toISOString()} FETCH ERROR ${cfg.method?.toUpperCase()} ${cfg.url} TTLB=${ttlb.toFixed(2)}ms`
+    );
+    return Promise.reject(error);
+  }
+);
+
 
 // ————————————————————————————————————————————————————————————————
 // Data types
