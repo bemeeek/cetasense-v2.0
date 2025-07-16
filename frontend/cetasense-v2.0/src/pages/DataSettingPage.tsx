@@ -5,7 +5,7 @@ import UploadForm from '../components/UploadForm';
 import HistoryDataList from '../components/HistoryDataList';
 import aiIcon from '../assets/ai-settings-spark--cog-gear-settings-machine-artificial-intelligence.svg';
 import { fetchCSIFileMeta, type CSIFileMeta } from '../services/api';
-import { TabSwitcher } from '../components/switchertab/TabSwitcher';
+import { Stepper } from '../components/switchertab/Stepper';
 
 const DataSettingPage: React.FC = () => {
   // histori uploads di sini
@@ -17,6 +17,7 @@ const DataSettingPage: React.FC = () => {
     (async () => {
       const list = await fetchCSIFileMeta();
       setUploads(list || []);
+      sessionStorage.setItem('step-2-completed', 'true');
     })();
   }, []);
 
@@ -48,7 +49,7 @@ const DataSettingPage: React.FC = () => {
           </div>
         </header>
 
-        <TabSwitcher /> 
+        <Stepper />
 
         {/* Body */}
         <main className="flex-1 p-8 overflow-auto">

@@ -62,10 +62,11 @@ function App() {
 
             {/* Settings pages */}
             <Route path="/settings">
-              <Route path="algoritma" element={<MethodSettingPage />} />
+              {/* default /settings → langkah 1 */}
+              <Route index element={<Navigate to="ruangan" replace />} />
               <Route path="ruangan"   element={<RoomPage />} />
               <Route path="data"      element={<DataSettingPage />} />
-              <Route index element={<Navigate to="data" replace />} />
+              <Route path="algoritma" element={<MethodSettingPage />} />
             </Route>
 
             {/* Data‐Stream pages */}

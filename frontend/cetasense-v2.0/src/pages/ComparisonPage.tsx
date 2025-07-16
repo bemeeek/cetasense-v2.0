@@ -15,6 +15,7 @@ import Sidebar from '../components/sidebar/sidebar';
 import { WifiIcon } from '@heroicons/react/24/outline';
 import { TabSwitcherData } from '../components/switchertab/TabSwitcherData';
 import { CheckCircleIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { GroundTruthForm } from '../components/GroundTruthForm';
 
 export const ComparisonPage: React.FC = () => {
   // 1) Metadata lists
@@ -23,6 +24,8 @@ export const ComparisonPage: React.FC = () => {
   const [methodList, setMethodList] = useState<Methods[]>([]);
   const [jobStatus, setJobStatus] = useState<'idle'|'queued'|'running'|'done'|'failed'>('idle');
   const isLoading = jobStatus==='queued' || jobStatus==='running';
+  const [gtX, setGtX] = useState<string>('');
+  const [gtY, setGtY] = useState<string>('');
 
   // 2) Selected inputs
   const [params, setParams] = useState({
@@ -164,8 +167,11 @@ export const ComparisonPage: React.FC = () => {
             onChangeRuanganRun2={v => handleChange('run2', 'ruangan', v)} // For run2
             onSubmit={startComparison}
             disabled={isLoading}
+            gtX={gtX}
+            gtY={gtY}
+            onChangeGtX={setGtX}
+            onChangeGtY={setGtY}
           />
-          
           <div className="flex flex-col mt-4 mb-5 gap-2">
             {isLoading && (
               <LoadingIndicator />
@@ -182,6 +188,11 @@ export const ComparisonPage: React.FC = () => {
               methods={{
                 run1: getMethodName(params.run1.method),
                 run2: getMethodName(params.run2.method)
+              }}
+              // teruskan GT sebagai number (atau null jika kosong)
+              groundTruth={{
+                x: parseFloat(gtX) || null,
+                y: parseFloat(gtY) || null,
               }}
             />
           )}

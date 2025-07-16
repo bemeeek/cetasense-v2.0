@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { fetchMethods, type Methods } from '../services/api';
-import { TabSwitcher } from '../components/switchertab/TabSwitcher';
+import { Stepper } from '../components/switchertab/Stepper';
 
 // Lazy load komponen berat
 const UploadMethod = lazy(() => import('../components/MethodForm'));
@@ -25,6 +25,7 @@ const MethodSettingPage: React.FC = () => {
         // Use cache if less than 5 minutes old
         if (cached && cacheTime && (now - parseInt(cacheTime)) < 300000) {
           setMethods(JSON.parse(cached));
+          sessionStorage.setItem('step-3-completed', 'true');
           setLoading(false);
           return;
         }
@@ -77,8 +78,8 @@ const MethodSettingPage: React.FC = () => {
           </div>
         </header>
 
-        {/* TabSwitcher - Load immediately as it's lightweight */}
-        <TabSwitcher />
+        {/* Stepper - Load immediately as it's lightweight */}
+        <Stepper />
 
         {/* Lazy loaded main content */}
         <main className="flex-1 p-8 mt-0 overflow-auto">

@@ -39,7 +39,7 @@ const Sidebar: React.FC = () => {
               <img 
                 src={CetaSenseIcon} 
                 alt="Logo" 
-                className="w-8 h-8 rounded-full" 
+                className="w-10 h-10 rounded-full" 
               />
             </div>
             <div className="ml-3 flex flex-col justify-center">
@@ -54,7 +54,7 @@ const Sidebar: React.FC = () => {
             <img 
               src={CetaSenseIcon} 
               alt="Logo" 
-              className="w-8 h-8 rounded-full" 
+              className="w-10 h-10 rounded-full" 
             />
           </div>
         )}

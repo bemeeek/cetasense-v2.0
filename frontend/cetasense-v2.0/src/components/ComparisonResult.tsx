@@ -13,9 +13,10 @@ interface Props {
     run1: string;
     run2: string;
   };
+  groundTruth?: { x: number|null; y: number|null };
 }
 
-export const ComparisonResult: React.FC<Props> = ({ ruangan, results, methods }) => {
+export const ComparisonResult: React.FC<Props> = ({ ruangan, results, methods, groundTruth }) => {
   const {
     panjang,
     lebar,
@@ -66,26 +67,23 @@ export const ComparisonResult: React.FC<Props> = ({ ruangan, results, methods })
     return Math.sqrt(dx * dx + dy * dy);
   };
 
+ // Hitung error terhadap ground truth
+  const calcError = (pt: { x: number; y: number } | null) => {
+    if (!pt || groundTruth?.x == null || groundTruth?.y == null) return null;
+    const dx = pt.x - groundTruth.x;
+    const dy = pt.y - groundTruth.y;
+    return Math.sqrt(dx*dx + dy*dy);
+  };
+
+  const error1 = calcError(results.run1);
+  const error2 = calcError(results.run2);
+
+   const gtPct = groundTruth?.x != null && groundTruth?.y != null 
+      ? toCartesianPct(groundTruth.x, groundTruth.y) 
+      : null;
+
   const distance = calculateDistance();
 
-  // const renderSubjectMarker = (x: number, y: number, label: string) => {
-  //   const { left, bottom } = toCartesianPct(x, y);
-  //   return (
-  //     <div
-  //       key={label}
-  //       className="absolute"
-  //       style={{
-  //         left,
-  //         bottom,
-  //         transform: 'translate(-50%,-50%)'
-  //       }}
-  //     >
-  //       <div className={`w-10 h-10 bg-gradient-to-br ${label === 'A' ? 'from-red-400 to-red-600' : 'from-green-400 to-green-600'} rounded-full shadow-2xl border-4 border-white flex items-center justify-center`}>
-  //         <span className="text-white font-bold text-lg">{label}</span>
-  //       </div>
-  //     </div>
-  //   );
-  // };
 
   return (
     <div className="p-6 bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl shadow-lg">
@@ -113,31 +111,43 @@ export const ComparisonResult: React.FC<Props> = ({ ruangan, results, methods })
             style={{ width: `${width}px`, height: `${height}px` }} 
             className="relative bg-white border-2 border-gray-300 shadow-lg rounded-xl overflow-hidden"
           >
+            
             {renderCartesianGrid(divX, divY)}
             {renderAxisLines()}
-            
-            {/* Render connection lines - REVISI: Line yang lebih lengkap */}
-            {results.run1 && (
-              <>
-                {renderConnectionLines(txPct, subPct1, 'red', 'TX → A')}
-                {renderConnectionLines(rxPct, subPct1, 'orange', 'RX → A')}
-              </>
-            )}
-            {results.run2 && (
-              <>
-                {renderConnectionLines(txPct, subPct2, 'green', 'TX → B')}
-                {renderConnectionLines(rxPct, subPct2, 'blue', 'RX → B')}
-              </>
-            )}
             
             {/* Connection line between results */}
             {results.run1 && results.run2 && (
               renderConnectionLines(subPct1, subPct2, 'purple', 'A ↔ B')
             )}
 
+            {/* Connection lines from TX to results
+            {results.run1 && renderConnectionLines(txPct, subPct1, 'red', 'TX ↔ A')}
+            {results.run2 && renderConnectionLines(txPct, subPct2, 'orange', 'TX ↔ B')}
+
+            {/* Connection lines from RX to results */}
+            {/* {results.run1 && renderConnectionLines(rxPct, subPct1, 'green', 'RX ↔ A')}
+            {results.run2 && renderConnectionLines(rxPct, subPct2, 'blue', 'RX ↔ B')} */}
+
+            {/* NEW: Connection lines to Ground Truth */}
+            {gtPct && groundTruth?.x != null && groundTruth?.y != null && (
+              <>
+                {results.run1 && renderConnectionLines(gtPct, subPct1, 'darkblue', 'GT ↔ A')}
+                {results.run2 && renderConnectionLines(gtPct, subPct2, 'darkblue', 'GT ↔ B')}
+              </>
+            )}
+
+
             {/* Render markers */}
-            {renderMarkers(txPct, rxPct, subPct1, subPct2, results.run1 ?? { x: 0, y: 0 }, results.run2 ?? { x: 0, y: 0 })}
-            
+            {renderMarkers(
+              txPct, 
+              rxPct, 
+              subPct1, 
+              subPct2, 
+              results.run1 ?? { x: 0, y: 0 }, 
+              results.run2 ?? { x: 0, y: 0 },
+              gtPct, // NEW: Pass gtPct
+              groundTruth // NEW: Pass groundTruth data
+            )}            
             {/* Corner labels */}
             <div className="absolute bottom-2 left-2 text-sm font-bold text-green-600 bg-white/90 px-2 py-1 rounded border">
               Origin (0,0)
@@ -158,6 +168,19 @@ export const ComparisonResult: React.FC<Props> = ({ ruangan, results, methods })
         <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-6">
           {results.run1 && <CoordinateDisplay1 result={results.run1} method={methods.run1} />}
           {results.run2 && <CoordinateDisplay2 result={results.run2} method={methods.run2} />}
+          {/* === Panel Error dibanding GT === */}
+          {(error1 != null) && (
+            <div className="bg-white rounded-xl p-6 shadow-lg border border-red-200 h-full">
+              <h3 className="text-lg font-semibold text-red-600 mb-2">Error Algoritma 1</h3>
+              <p className="text-2xl font-bold text-red-600">{error1.toFixed(2)} m</p>
+            </div>
+          )}
+          {(error2 != null) && (
+            <div className="bg-white rounded-xl p-6 shadow-lg border border-green-200 h-full">
+              <h3 className="text-lg font-semibold text-green-600 mb-2">Error Algoritma 2</h3>
+              <p className="text-2xl font-bold text-green-600">{error2.toFixed(2)} m</p>
+            </div>
+          )}
           <DeviceInfo ruangan={ruangan} />
           {/* <CoordinateSystemInfo /> */}
           <Legend />
@@ -213,29 +236,6 @@ const CoordinateDisplay2: React.FC<{ result: { x: number; y: number }; method: s
   </div>
 );
 
-// // Komponen baru untuk menampilkan informasi jarak
-// const DistanceInfo: React.FC<{ distance: number }> = ({ distance }) => (
-//   <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 shadow-lg border border-purple-200 h-full">
-//     <h3 className="text-lg font-semibold text-purple-800 mb-4 flex items-center">
-//       <span className="w-3 h-3 bg-purple-600 rounded-full mr-2" />
-//       Analisis Jarak
-//     </h3>
-//     <div className="space-y-3">
-//       <div className="flex justify-between items-center p-3 bg-white/60 rounded-lg">
-//         <span className="font-medium text-gray-700">Jarak Euclidean:</span>
-//         <span className="font-bold text-2xl text-purple-600">{distance.toFixed(2)}m</span>
-//       </div>
-//       <div className="text-sm text-purple-700">
-//         {distance < 1 ? 
-//           "Hasil sangat dekat - akurasi tinggi" : 
-//           distance < 3 ? 
-//           "Hasil cukup dekat - akurasi baik" : 
-//           "Hasil berjauhan - perlu evaluasi"
-//         }
-//       </div>
-//     </div>
-//   </div>
-// );
 
 const DeviceInfo: React.FC<{ ruangan: Ruangan }> = ({ ruangan }) => (
   <div className="bg-white rounded-xl p-6 shadow-lg h-full border border-gray-200">
@@ -263,28 +263,7 @@ const DeviceInfo: React.FC<{ ruangan: Ruangan }> = ({ ruangan }) => (
   </div>
 );
 
-// const CoordinateSystemInfo = () => (
-//   <div className="bg-gradient-to-br h-full from-indigo-50 to-purple-50 rounded-xl p-6 shadow-lg border border-indigo-200">
-//     <h3 className="text-lg font-semibold text-indigo-800 mb-4 flex items-center">
-//       <span className="w-3 h-3 bg-indigo-600 rounded-full mr-2" />
-//       Sistem Koordinat Kartesian
-//     </h3>
-//     <div className="space-y-2 text-sm text-indigo-700">
-//       <div className="flex items-center">
-//         <div className="w-3 h-0.5 bg-blue-500 mr-2" />
-//         <span>X-axis: Horizontal (Panjang ruangan)</span>
-//       </div>
-//       <div className="flex items-center">
-//         <div className="w-0.5 h-3 bg-green-500 mr-2 ml-1" />
-//         <span>Y-axis: Vertikal (Lebar ruangan)</span>
-//       </div>
-//       <div className="flex items-center">
-//         <div className="w-2 h-2 bg-green-600 rounded-full mr-2" />
-//         <span>Origin (0,0): Pojok kiri bawah</span>
-//       </div>
-//     </div>
-//   </div>
-// );
+
 
 const Legend = () => (
   <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
@@ -314,6 +293,13 @@ const Legend = () => (
         </div>
         <span className="text-sm font-medium">Posisi Subjek 2</span>
       </div>
+      {/* NEW: Ground Truth Legend Item */}
+      <div className="flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg transition-colors">
+        <div className="w-6 h-6 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full border-2 border-white shadow-md flex items-center justify-center">
+          <span className="text-white text-xs font-bold">GT</span>
+        </div>
+        <span className="text-sm font-medium">Posisi Ground Truth</span>
+      </div>
       <div className="text-xs text-gray-500 mt-3 p-2 bg-gray-50 rounded">
         <div className="flex items-center gap-2">
           <div className="w-4 h-0.5 bg-red-400" style={{background: 'linear-gradient(to right, red, orange, green, blue, purple)'}} />
@@ -331,7 +317,9 @@ const renderMarkers = (
   subPct1: any, 
   subPct2: any, 
   results1: { x: number; y: number }, 
-  results2: { x: number; y: number }
+  results2: { x: number; y: number },
+  gtPct: { left: string; bottom: string } | null, // NEW: Add gtPct
+  groundTruth: { x: number | null; y: number | null } | undefined // NEW: Add groundTruth data
 ) => (
   <>
     {/* TX Marker */}
@@ -389,6 +377,21 @@ const renderMarkers = (
         </div>
       </div>
     </div>
+    {/* NEW: Ground Truth Marker */}
+    {gtPct && groundTruth?.x != null && groundTruth?.y != null && (
+      <div
+        title={`Ground Truth - Koordinat: (${groundTruth.x.toFixed(2)}, ${groundTruth.y.toFixed(2)})`}
+        className="absolute z-30"
+        style={{ left: gtPct.left, bottom: gtPct.bottom, transform: 'translate(-50%, 50%)' }}
+      >
+        <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full shadow-2xl border-4 border-white transform transition-all duration-300 group-hover:scale-125">
+          <div className="absolute inset-1 bg-blue-300 rounded-full animate-pulse opacity-60" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-white font-bold text-xs">GT</span> {/* Label "GT" */}
+          </div>
+        </div>
+      </div>
+    )}
   </>
 );
 
@@ -422,16 +425,18 @@ const renderAxisLines = () => (
 const renderConnectionLines = (
   fromPct: { left: string; bottom: string },
   toPct: { left: string; bottom: string },
-  color: 'red' | 'orange' | 'green' | 'blue' | 'purple',
+  color: 'red' | 'orange' | 'green' | 'blue' | 'purple' | 'darkblue' | 'gray',
   label: string
 ) => {
   const colorMap = {
-    red: 'rgba(239, 68, 68, 0.6)',
-    orange: 'rgba(249, 115, 22, 0.6)',
-    green: 'rgba(34, 197, 94, 0.6)',
-    blue: 'rgba(59, 130, 246, 0.6)',
-    purple: 'rgba(147, 51, 234, 0.6)'
-  };
+  red: 'rgba(239, 68, 68, 0.6)',
+  orange: 'rgba(249, 115, 22, 0.6)',
+  green: 'rgba(34, 197, 94, 0.6)',
+  blue: 'rgba(59, 130, 246, 0.6)',
+  purple: 'rgba(147, 51, 234, 0.6)',
+  gray: 'rgba(107, 114, 128, 0.6)',
+  darkblue: 'rgba(30, 64, 175, 0.8)' // Untuk GT lines
+};
 
   return (
     <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">

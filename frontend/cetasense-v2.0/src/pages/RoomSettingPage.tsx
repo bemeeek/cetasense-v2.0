@@ -1,4 +1,3 @@
-// src/pages/RoomSettingPage.tsx
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/sidebar/sidebar';
 import RoomForm from '../components/RoomForm';
@@ -12,7 +11,7 @@ import {
   type Ruangan,
   type RuanganCreate
 } from '../services/api';
-import { TabSwitcher } from '../components/switchertab/TabSwitcher';
+import { Stepper } from '../components/switchertab/Stepper';
 
 const RoomSettingPage: React.FC = () => {
   const [rooms, setRooms] = useState<Ruangan[]>([]);
@@ -43,6 +42,7 @@ const RoomSettingPage: React.FC = () => {
       }
       setSelectedRoom(undefined);
       await loadRooms();
+      sessionStorage.setItem('step-1-completed', 'true');
     } catch {
       setError('Gagal menyimpan ruangan.');
     }
@@ -80,8 +80,8 @@ const RoomSettingPage: React.FC = () => {
           </div>
         </header>
 
-        {/* Tabs */}
-        <TabSwitcher />
+        {/* Stepper */}
+        <Stepper />
 
         {/* Body */}
         <main className="flex-1 p-8 mt-0 overflow-auto">
