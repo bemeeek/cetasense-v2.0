@@ -209,7 +209,6 @@ func (h *UploadHandler) DeleteUpload(w http.ResponseWriter, r *http.Request) {
 	fileMeta, err := h.csvRepo.GetByID(ctx, fileID)
 	if err != nil {
 		log.Printf("CSVFileRepository.GetByID error: %v", err)
-		// middleware.LogEvent(r.Context().Value(middleware.ReqIDKey).(string), "CSV_REPO_GET_BY_ID_ERROR", err.Error())
 		respondError(w, http.StatusNotFound, "File not found: "+err.Error())
 		return
 	}

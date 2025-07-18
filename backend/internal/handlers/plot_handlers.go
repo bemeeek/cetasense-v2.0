@@ -5,11 +5,14 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/minio/minio-go/v7"
 
+	"cetasense-v2.0/internal/metrics"
 	"cetasense-v2.0/internal/repositories"
+	"cetasense-v2.0/middleware"
 )
 
 type PlotHandler struct {
@@ -33,20 +36,27 @@ func (h *PlotHandler) ListCSV(w http.ResponseWriter, r *http.Request) {
 
 func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 	// 1) ambil metadata & object CSV
+	reqID := r.Context().Value(middleware.ReqIDKey).(string)
+	t0 := time.Now()
 	id := mux.Vars(r)["id"]
 	meta, err := h.csvRepo.GetByID(r.Context(), id)
 	if err != nil {
 		respondError(w, http.StatusNotFound, "CSV not found")
 		return
 	}
+	metrics.Step(reqID, "GET_PLOTS_GET_BY_ID", float64(time.Since(t0).Nanoseconds())/1e6)
+
+	t0 = time.Now()
 	obj, err := h.minioClient.GetObject(r.Context(), h.bucketName, meta.ObjectPath, minio.GetObjectOptions{})
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to fetch CSV")
 		return
 	}
+	metrics.Step(reqID, "GET_PLOTS_GET_OBJECT", float64(time.Since(t0).Nanoseconds())/1e6)
 	defer obj.Close()
 
 	// 2) parse CSV → [][]float64 with shape [nPackets][3*30]
+	t0 = time.Now()
 	reader := csv.NewReader(obj)
 	var data [][]float64
 	if _, err := reader.Read(); err != nil {
@@ -127,6 +137,7 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 		}
 		overallMean[ant] = sum / float64(sub)
 	}
+	metrics.Step(reqID, "GET_PLOTS_PROCESS_CSV", float64(time.Since(t0).Nanoseconds())/1e6)
 
 	// 7) kirim JSON
 	respondJSON(w, http.StatusOK, map[string]interface{}{
@@ -142,4 +153,5 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 		"subcarriers":  sub, // =1…30
 		"antennas":     []string{"Ant 1", "Ant 2", "Ant 3"},
 	})
+	metrics.Step(reqID, "GET_PLOTS_SEND_RESPONSE", float64(time.Since(t0).Nanoseconds())/1e6)
 }

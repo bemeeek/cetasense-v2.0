@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"cetasense-v2.0/internal/metrics"
+	"cetasense-v2.0/middleware"
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
 )
@@ -24,6 +26,8 @@ type SSEMessage struct {
 
 func LocalizationHandler(rdb *redis.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		reqID := r.Context().Value(middleware.ReqIDKey).(string)
+		t0 := time.Now()
 		vars := mux.Vars(r)
 		jobID := vars["job_id"]
 		if jobID == "" {
@@ -31,21 +35,25 @@ func LocalizationHandler(rdb *redis.Client) http.HandlerFunc {
 			return
 		}
 		channel := fmt.Sprintf("lok_notify:%s", jobID)
+		metrics.Step(reqID, "SSE_LOCALIZATION_START", float64(time.Since(t0).Nanoseconds())/1e6)
 
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 
+		t0 = time.Now()
 		flusher, ok := w.(http.Flusher)
 		if !ok {
 			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
 			return
 		}
+		metrics.Step(reqID, "SSE_LOCALIZATION_HEADERS", float64(time.Since(t0).Nanoseconds())/1e6)
 
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
+		t0 = time.Now()
 		sub := rdb.Subscribe(ctx, channel)
 		defer sub.Close()
 		if _, err := sub.Receive(ctx); err != nil {
@@ -53,6 +61,7 @@ func LocalizationHandler(rdb *redis.Client) http.HandlerFunc {
 			http.Error(w, "failed to subscribe", http.StatusInternalServerError)
 			return
 		}
+		metrics.Step(reqID, "SSE_LOCALIZATION_SUBSCRIBE", float64(time.Since(t0).Nanoseconds())/1e6)
 
 		// send “connected” event
 		connected := SSEMessage{
@@ -66,6 +75,7 @@ func LocalizationHandler(rdb *redis.Client) http.HandlerFunc {
 		}
 
 		// kirim cached status bila ada
+		t0 = time.Now()
 		cacheKey := fmt.Sprintf("lok_status:%s", jobID)
 		if cached, err := rdb.HGetAll(ctx, cacheKey).Result(); err == nil && len(cached) > 0 {
 			msg := SSEMessage{JobID: jobID, Status: cached["status"], Timestamp: cached["updated_at"]}
@@ -86,9 +96,11 @@ func LocalizationHandler(rdb *redis.Client) http.HandlerFunc {
 					return
 				}
 			}
+			metrics.Step(reqID, "SSE_LOCALIZATION_CACHE", float64(time.Since(t0).Nanoseconds())/1e6)
 		}
 
 		ch := sub.Channel()
+		t0 = time.Now()
 		for {
 			select {
 			case m, ok := <-ch:
@@ -101,6 +113,7 @@ func LocalizationHandler(rdb *redis.Client) http.HandlerFunc {
 					return
 				}
 			case <-ctx.Done():
+				metrics.Step(reqID, "SSE_LOCALIZATION_DONE", float64(time.Since(t0).Nanoseconds())/1e6)
 				return
 			}
 		}

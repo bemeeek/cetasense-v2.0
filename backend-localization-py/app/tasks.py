@@ -15,7 +15,17 @@ from python.localize import run_localization
 import pymysql.cursors
 import tempfile
 
+from .simple_step_metrics import init_steps_metrics, step, set_request_id, get_request_id, StepTimer, generate_request_id
+
 load_dotenv()
+
+METRICS_FILE = os.getenv("METRICS_FILE", "step_metrics.csv")  # Use the same file as Golang
+
+try:
+    init_steps_metrics(METRICS_FILE)  # FILE YANG SAMA
+    logging.info(f"✅ Tasks module step metrics initialized: {METRICS_FILE}")
+except Exception as e:
+    logging.error(f"Failed to initialize step metrics in tasks: {e}")
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -129,39 +139,44 @@ def wait_for_subscriber(job_id: str, timeout_s=10):
 @celery.task(bind=True, max_retries=3, default_retry_delay=60)
 def localize_task(self, job_id: str) -> Dict[str, Any]:
     logger.info(f"🚀 Starting localization task for job {job_id}")
-    
+    # generate a dedicated request‐ID for all metrics in this task
+    req_id = get_request_id() or generate_request_id()
+    set_request_id(req_id)
     # Test Redis connection at start
     test_redis_connection()
 
     logger.info(f"⏳ Waiting 2 seconds for potential subscribers...")
     time.sleep(2)
     
+    task_start_time = time.time()
+    step(req_id, "localize_task_START", 0.0)  # Log start step
     # Inisialisasi variabel untuk cleanup
     csv_file_path: Optional[str] = None
     model_file_path: Optional[str] = None
     
     try:
         # ===== UPDATE STATUS TO RUNNING =====
-        with transaction() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT status FROM lokalisasi_jobs WHERE id=%s FOR UPDATE",
-                    (job_id,)
-                )
-                job = cur.fetchone()
-                if not job:
-                    raise ValueError(f"Job {job_id} tidak ditemukan")
-                
-                if job['status'] != 'queued':
-                    logger.warning(f"Job {job_id} is not in 'queued' status, current status: {job['status']}")
-                    return {
-                        "status": job['status'],
-                        "message": f"Job {job_id} is already in status '{job['status']}'"
-                    }
-                cur.execute(
-                    "UPDATE lokalisasi_jobs SET status=%s, updated_at=%s WHERE id=%s",
-                    ("running", datetime.now(), job_id)
-                )
+        with StepTimer(job_id, "UPDATE_JOB_STATUS"):
+            with transaction() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT status FROM lokalisasi_jobs WHERE id=%s FOR UPDATE",
+                        (job_id,)
+                    )
+                    job = cur.fetchone()
+                    if not job:
+                        raise ValueError(f"Job {job_id} tidak ditemukan")
+                    
+                    if job['status'] != 'queued':
+                        logger.warning(f"Job {job_id} is not in 'queued' status, current status: {job['status']}")
+                        return {
+                            "status": job['status'],
+                            "message": f"Job {job_id} is already in status '{job['status']}'"
+                        }
+                    cur.execute(
+                        "UPDATE lokalisasi_jobs SET status=%s, updated_at=%s WHERE id=%s",
+                        ("running", datetime.now(), job_id)
+                    )
         
         cache_status(job_id, "running")
         notify_pubsub(job_id, "running")
@@ -201,14 +216,16 @@ def localize_task(self, job_id: str) -> Dict[str, Any]:
         logger.info(f"📂 Job {job_id} details: data={data_path}, model={model_path}")
         
         # ===== DOWNLOAD FILES =====
-        csv_bytes = get_object(MINIO_BUCKET_NAME, data_path)
-        model_bytes = get_object(MINIO_BUCKET_NAME, model_path)
-        logger.info(f"⬇️  Job {job_id}: downloaded {len(csv_bytes)}B CSV, {len(model_bytes)}B model")
+        with StepTimer(req_id, "DOWNLOAD_CSV_FROM_MINIO"):
+            csv_bytes = get_object(MINIO_BUCKET_NAME, data_path)
+            model_bytes = get_object(MINIO_BUCKET_NAME, model_path)
+            logger.info(f"⬇️  Job {job_id}: downloaded {len(csv_bytes)}B CSV, {len(model_bytes)}B model")
 
         # ===== CREATE TEMP FILES =====
-        with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as csv_file:
-            csv_file.write(csv_bytes)
-            csv_file_path = csv_file.name
+        with StepTimer(req_id, "CREATE_TEMP_FILES"):
+            with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as csv_file:
+                csv_file.write(csv_bytes)
+                csv_file_path = csv_file.name
         
         _, ext = os.path.splitext(model_path)
         suffix = ext if ext.lower() in (".pkl", ".py") else ".pkl"
@@ -220,37 +237,46 @@ def localize_task(self, job_id: str) -> Dict[str, Any]:
 
         # ===== RUN LOCALIZATION =====
         logger.info(f"🔍 Job {job_id}: starting localization process")
-        result = run_localization(csv_file_path, model_file_path)
-        x = result["x"]
-        y = result["y"]
-        logger.info(f"🎯 Job {job_id}: localization result: x={x}, y={y}")
+        with StepTimer(req_id, "RUN_LOCALIZATION"):
+            result = run_localization(csv_file_path, model_file_path)
+            x = result["x"]
+            y = result["y"]
+            logger.info(f"🎯 Job {job_id}: localization result: x={x}, y={y}")
         
         # ===== SAVE TO DATABASE =====
         hasil_id = str(uuid4())
-        with transaction() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO hasil_lokalisasi "
-                    "(id, hasil_x, hasil_y, id_data, id_metode, id_ruangan) "
-                    "VALUES (%s,%s,%s,%s,%s,%s)",
-                    (hasil_id, x, y, data_id, metode_id, ruangan_id)
-                )
-                cur.execute(
-                    "UPDATE lokalisasi_jobs SET status=%s, updated_at=%s WHERE id=%s",
-                    ("done", datetime.now(timezone.utc), job_id)
-                )
+        with StepTimer(req_id, "SAVE_TO_MARIADB_DATABASE"):
+            with transaction() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO hasil_lokalisasi "
+                        "(id, hasil_x, hasil_y, id_data, id_metode, id_ruangan) "
+                        "VALUES (%s,%s,%s,%s,%s,%s)",
+                        (hasil_id, x, y, data_id, metode_id, ruangan_id)
+                    )
+                    cur.execute(
+                        "UPDATE lokalisasi_jobs SET status=%s, updated_at=%s WHERE id=%s",
+                        ("done", datetime.now(timezone.utc), job_id)
+                    )
 
         # ===== SUCCESS NOTIFICATION =====
-        cache_status(job_id, "done", x=x, y=y)
-        notify_pubsub(job_id, "done", x=x, y=y)
-        logger.info(f"✅ Job {job_id} completed successfully with result: x={x}, y={y}")
-        
+        with StepTimer(req_id, "NOTIFY_SUCCESS"):
+            cache_status(job_id, "done", x=x, y=y)
+            notify_pubsub(job_id, "done", x=x, y=y)
+            logger.info(f"✅ Job {job_id} completed successfully with result: x={x}, y={y}")
+
+        total_task_time = (time.time() - task_start_time) * 1000
+        step(req_id, "CELERY_LOCALIZE_TASK_SUCCESS", total_task_time)
+
         return {
             "status": "done",
             "x": x,
             "y": y,
             "job_id": job_id,
         }
+
+    
+    
             
     except Exception as e:
         # ===== ERROR HANDLING =====
@@ -274,11 +300,14 @@ def localize_task(self, job_id: str) -> Dict[str, Any]:
         except Exception as db_error:
             logger.error(f"❌ Failed to update job {job_id} status in database: {db_error}")
 
+        total_task_time = (time.time() - task_start_time) * 1000
+        step(req_id, "CELERY_LOCALIZE_TASK_FAILED", total_task_time)
         return {
             "status": "failed",
             "error": error_msg,
             "job_id": job_id
         }
+
         
     finally:
         # ===== CLEANUP =====

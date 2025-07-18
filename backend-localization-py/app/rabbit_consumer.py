@@ -10,6 +10,16 @@ import logging
 import signal
 import sys
 
+from .simple_step_metrics import (
+    init_steps_metrics, 
+    step, 
+    set_request_id, 
+    generate_request_id,
+    StepTimer
+)
+
+METRICS_FILE = os.getenv("METRICS_FILE", "step_metrics.csv")  # Use the same file as Golang
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -21,6 +31,13 @@ class RabbitMQConsumer:
         self.connection = None
         self.channel = None
         self.should_stop = False
+
+        try :
+            init_steps_metrics(METRICS_FILE)  # Initialize metrics with the same file as Golang
+            logger.info("✅ RabbitMQ Consumer step metrics initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize step metrics: {e}")
+
     def connect(self):
         host = os.getenv("RABBITMQ_HOST", "rabbitmq")
         port = int(os.getenv("RABBITMQ_PORT", 5672))
@@ -44,8 +61,13 @@ class RabbitMQConsumer:
     
     def process_message(self, ch, method, properties, body):
         try :
+            step("RABBITMQ_CONSUMER_PROCESS_MESSAGE", "START", 0)  # Log the start of processing
             try :
                 data = json.loads(body)
+                req_id = data.get("req_id") or generate_request_id()
+                set_request_id(req_id)
+                step(req_id, "RABBITMQ_CONSUMER_PROCESS_MESSAGE", 0)  # Log the start of processing
+                task_start_time = time.time()
                 job_id = data.get("job_id")
                 if not job_id:
                     logger.warning("Received message without job_id, skipping")
@@ -71,31 +93,36 @@ class RabbitMQConsumer:
                 logger.error(f"Failed to decode message body: {e}")
                 ch.basic_ack(delivery_tag=method.delivery_tag)
                 return
+            total_task_time = (time.time() - task_start_time) * 1000
+            step(req_id, "RABBITMQ_CONSUMER_MESSAGE_VALIDATION", total_task_time)  # Log validation step
             logger.info(f"Received job_id={job_id}, id_data={id_data}, id_metode={id_metode}, id_ruangan={id_ruangan}, created_at={created_at}")
 
             @with_db_retry(max_retries=3, delay=2)
             def insert_job():
-                with transaction() as conn:
-                    with conn.cursor() as cursor:
-                        cursor.execute(
-                            "SELECT id FROM lokalisasi_jobs WHERE id=%s",
-                            (job_id,)
-                        )
-                        if cursor.fetchone():
-                            logger.warning(f"Job {job_id} already exists, skipping insert")
-                            return
-                        cursor.execute(
-                            "INSERT INTO lokalisasi_jobs (id, id_data, id_metode, id_ruangan, status, created_at, updated_at)"
-                            " VALUES (%s,%s,%s,%s,'queued',%s,%s)",
-                            (job_id, id_data, id_metode, id_ruangan, created_at, created_at)
-                        )
-                        return True
+                with StepTimer(req_id, "INSERT_JOB_TO_MARIADB"):
+                    with transaction() as conn:
+                        with conn.cursor() as cursor:
+                            cursor.execute(
+                                "SELECT id FROM lokalisasi_jobs WHERE id=%s",
+                                (job_id,)
+                            )
+                            if cursor.fetchone():
+                                logger.warning(f"Job {job_id} already exists, skipping insert")
+                                return
+                            cursor.execute(
+                                "INSERT INTO lokalisasi_jobs (id, id_data, id_metode, id_ruangan, status, created_at, updated_at)"
+                                " VALUES (%s,%s,%s,%s,'queued',%s,%s)",
+                                (job_id, id_data, id_metode, id_ruangan, created_at, created_at)
+                            )
+                            return True
+            
             if insert_job():
                 localize_task.apply_async(args=[job_id], task_id=job_id) # type: ignore
                 logger.info(f"Job {job_id} inserted and task queued")
 
             ch.basic_ack(delivery_tag=method.delivery_tag)
-            
+            total_task_time = (time.time() - task_start_time) * 1000
+            step(req_id, "RABBITMQ_CONSUMER_PROCESS_MESSAGE_SUCCESS", total_task_time)  # Log success
         except Exception as e:
             logger.error(f"Error processing message: {e}")
             ch.basic_nack(delivery_tag=method.delivery_tag)

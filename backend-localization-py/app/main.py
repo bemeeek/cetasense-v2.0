@@ -13,13 +13,18 @@ import logging
 import celery
 import uvicorn # type: ignore
 import signal
-from .rabbit_consumer import signal_handler
+import time
+from fastapi import Request
 
+from .rabbit_consumer import signal_handler
 from .db import get_connection, get_db_connection, transaction
 from .models import LocalizeRequest, create_lokalisasi_table
 from .tasks import localize_task
 from .setup_redis import redis_client
 from .rabbit_consumer import main as consume_rabbit
+from .simple_step_metrics import init_steps_metrics, step, get_request_id, set_request_id, generate_request_id, StepTimer, StepsMetrics
+
+METRICS_FILE = os.getenv("METRICS_FILE", "step_metrics.csv")  # Use the same file as Golang
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -71,16 +76,51 @@ def on_startup():
     except Exception as e:
         logger.error(f"Error starting CetaSense Localization API: {e}")
         raise
+    try :
+        init_steps_metrics(METRICS_FILE)
+        logger.info("Step metrics initialized successfully.")
+    except Exception as e:
+        logger.error(f"Failed to initialize step metrics: {e}")
 
 app.add_event_handler("startup", on_startup)
 
 # Middleware untuk instance tracking di semua responses
 @app.middleware("http")
-async def add_instance_header(request, call_next):
-    response = await call_next(request)
-    response.headers["X-Instance-ID"] = INSTANCE_ID
-    response.headers["X-Service-Type"] = "py_api"
-    return response
+async def steps_timing_middleware(request: Request, call_next):
+    """Simple middleware untuk steps timing"""
+    # Get Request ID dari Golang header
+    req_id = generate_request_id()
+    
+    # Set request ID context
+    set_request_id(req_id)
+    
+    # Log route start
+    method = request.method
+    route = str(request.url.path)
+    route_name = route.replace('/', '_').replace('-', '_').upper()
+    
+    start_time = time.time()
+    logger.debug(f"request {req_id} started: {method} {route_name}")
+    step(req_id, f"PYTHON_{method}_{route_name}_START", 0.0)
+    
+    try:
+        response = await call_next(request)
+        
+        # Log route success
+        duration_ms = (time.time() - start_time) * 1000
+        step(req_id, f"PYTHON_{method}_{route_name}_SUCCESS", duration_ms)
+        
+        # CRITICAL: Headers untuk nginx load balancer tracking
+        response.headers["X-Instance-ID"] = INSTANCE_ID
+        response.headers["X-Service-Type"] = "py_api"
+        response.headers["X-Request-Id"] = req_id
+        
+        return response
+        
+    except Exception as e:
+        duration_ms = (time.time() - start_time) * 1000
+        step(req_id, f"PYTHON_{method}_{route_name}_ERROR", duration_ms)
+        raise
 
 # Health endpoint untuk load balancer
 @app.get("/localize/health")
@@ -97,45 +137,6 @@ async def health_check(response: Response):
         "version": "1.0.0"
     }
 
-# @app.get("/health", response_model=dict)
-# def health_check():
-#     """
-#     Health check endpoint.
-#     """
-#     health_status = {
-#         "status": "ok",
-#         "timestamp": datetime.now().isoformat(),
-#         "service": {}
-#     }
-
-#     try:
-#         with get_db_connection() as conn:
-#             with conn.cursor() as cursor:
-#                 cursor.execute("SELECT 1")
-#                 result = cursor.fetchone()
-#                 if result:
-#                     health_status["service"]["database"] = "ok"
-#                 else:
-#                     health_status["service"]["database"] = "error"
-#     except Exception as e:
-#         logger.error(f"Database health check failed: {e}")
-#         health_status["service"]["database"] = "error"
-
-#     try:
-#         redis_client.ping()
-#         health_status["service"]["redis"] = "healthy"
-#     except Exception as e:
-#         logger.error(f"Redis health check failed: {e}")
-#         health_status["service"]["redis"] = "unhealthy"
-
-#     if consumer_thread and consumer_thread.is_alive():
-#         health_status["service"]["rabbitmq_consumer"] = "healthy"
-#     else:
-#         health_status["service"]["rabbitmq_consumer"] = "unhealthy"
-#         health_status["status"] = "degraded"
-
-#     status_code = 200 if health_status["status"] == "ok" else 503
-#     return Response(content=json.dumps(health_status), media_type="application/json", status_code=status_code)
 
 @app.post("/localize", response_model=LocalizeRequest, status_code=202)
 def enqueue(req: LocalizeRequest):
@@ -143,38 +144,45 @@ def enqueue(req: LocalizeRequest):
     Enqueue a localization request.
     """
     job_id = str(uuid.uuid4()).hex # type: ignore # Generate a unique job ID
+    req_id = get_request_id()
+
+    task_start_time = time.time()
+    step(req_id, "ENQUEUE_LOCALIZATION_REQUEST", 0.0)  # Log the start of the request # type: ignore
 
     try:
-        with transaction() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    "SELECT id FROM data_csv WHERE id=%s", (req.id_data,)
-                )
-                if not cursor.fetchone():
-                    raise HTTPException(status_code=404, detail="Data not found")
-                
-                cursor.execute(
-                    "SELECT id FROM metodelokalisasi WHERE id=%s", (req.id_metode,)
-                )
-                if not cursor.fetchone():
-                    raise HTTPException(status_code=404, detail="Metode not found")
+        with StepTimer(req_id, "ENQUEUE_LOCALIZATION_REQUEST"): # type: ignore
+            with transaction() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id FROM data_csv WHERE id=%s", (req.id_data,)
+                    )
+                    if not cursor.fetchone():
+                        raise HTTPException(status_code=404, detail="Data not found")
+                    
+                    cursor.execute(
+                        "SELECT id FROM metodelokalisasi WHERE id=%s", (req.id_metode,)
+                    )
+                    if not cursor.fetchone():
+                        raise HTTPException(status_code=404, detail="Metode not found")
 
-                cursor.execute(
-                    "SELECT id FROM ruangan WHERE id=%s", (req.id_ruangan,)
-                )
-                if not cursor.fetchone():
-                    raise HTTPException(status_code=404, detail="Ruangan not found")
+                    cursor.execute(
+                        "SELECT id FROM ruangan WHERE id=%s", (req.id_ruangan,)
+                    )
+                    if not cursor.fetchone():
+                        raise HTTPException(status_code=404, detail="Ruangan not found")
 
-                cursor.execute(
-                    "INSERT INTO lokalisasi_jobs (id, id_data, id_metode, id_ruangan, status, created_at, updated_at)"
-                    " VALUES (%s, %s, %s, %s, 'queued', %s, %s)",
-                    (job_id, req.id_data, req.id_metode, req.id_ruangan, datetime.now(), datetime.now())
-                )
-            localize_task.apply_async(args=[job_id], task_id=job_id)  # type: ignore
+                    cursor.execute(
+                        "INSERT INTO lokalisasi_jobs (id, id_data, id_metode, id_ruangan, status, created_at, updated_at)"
+                        " VALUES (%s, %s, %s, %s, 'queued', %s, %s)",
+                        (job_id, req.id_data, req.id_metode, req.id_ruangan, datetime.now(), datetime.now())
+                    )
+            with StepTimer(req_id, "QUEUE_CELERY_TASK"): # type: ignore
+                localize_task.apply_async(args=[job_id], task_id=job_id)  # type: ignore
             logger.info(f"Job {job_id} inserted and task queued")
 
+            step(req_id, "ENQUEUE_LOCALIZATION_REQUEST_SUCCESS", (time.time() - task_start_time) * 1000)  # Log success # type: ignore
             return {"job_id": job_id, "status": "queued", "created_at": datetime.now().isoformat()}
-        
+            
     except HTTPException as e:
         raise
     except Exception as e:
@@ -189,65 +197,72 @@ def get_status(job_id: str):
     cache_key = f"lok_status:{job_id}"
     cached_data = redis_client.hgetall(cache_key)
 
-    if cached_data:
-        # cached_data sekarang adalah dict<string,string>
-        # jika perlu, cast tipe dan decode timestamp
-        response = {
-            "job_id": job_id,
-            "status": cached_data.get("status"),
-            "updated_at": cached_data.get("updated_at"),
-            "from_cache": True
-        }
-        if "hasil_x" in cached_data and "hasil_y" in cached_data:
-            response["hasil_x"] = float(cached_data["hasil_x"])
-            response["hasil_y"] = float(cached_data["hasil_y"])
-        if "error" in cached_data:
-            response["error_message"] = cached_data["error"]
-        return response
-    
-    try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                    SELECT 
-                        lj.status,
-                        lj.created_at,
-                        lj.updated_at,
-                        lj.error_message,
-                        hl.hasil_x,
-                        hl.hasil_y
-                    FROM lokalisasi_jobs lj
-                    LEFT JOIN hasil_lokalisasi hl ON hl.job_id = lj.id
-                    WHERE lj.id = %s
-                """, (job_id,))
+    req_id = get_request_id()
+    task_start_time = time.time()
+    step(req_id, "GET_JOB_STATUS", 0)  # Log the start of getting job status # type: ignore
 
-                row = cursor.fetchone()
-                if not row:
-                    raise HTTPException(status_code=404, detail="Job not found")
+    with StepTimer(req_id, "GET_JOB_STATUS"): # type: ignore
+        if cached_data:
+            # cached_data sekarang adalah dict<string,string>
+            # jika perlu, cast tipe dan decode timestamp
+            response = {
+                "job_id": job_id,
+                "status": cached_data.get("status"),
+                "updated_at": cached_data.get("updated_at"),
+                "from_cache": True
+            }
+            if "hasil_x" in cached_data and "hasil_y" in cached_data:
+                response["hasil_x"] = float(cached_data["hasil_x"])
+                response["hasil_y"] = float(cached_data["hasil_y"])
+            if "error" in cached_data:
+                response["error_message"] = cached_data["error"]
+            return response
+        
+    with StepTimer(req_id, "GET_JOB_STATUS_DB_QUERY"): # type: ignore
+        try:
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT 
+                            lj.status,
+                            lj.created_at,
+                            lj.updated_at,
+                            lj.error_message,
+                            hl.hasil_x,
+                            hl.hasil_y
+                        FROM lokalisasi_jobs lj
+                        LEFT JOIN hasil_lokalisasi hl ON hl.job_id = lj.id
+                        WHERE lj.id = %s
+                    """, (job_id,))
+
+                    row = cursor.fetchone()
+                    if not row:
+                        raise HTTPException(status_code=404, detail="Job not found")
+                    
+                    response = {
+                        "job_id": job_id,
+                        "status": row['status'],
+                        "created_at": row['created_at'].isoformat() if row['created_at'] else None,
+                        "updated_at": row['updated_at'].isoformat() if row['updated_at'] else None,
+                        "from_cache": False
+                    }
+
+                    if row['status'] == 'done':
+                        response.update({
+                            "hasil_x": float(row['hasil_x']) if row['hasil_x'] is not None else 0.0,
+                            "hasil_y": float(row['hasil_y']) if row['hasil_y'] is not None else 0.0,
+                        })
+                    elif row['status'] == 'error':
+                        response["error_message"] = row['error_message'] or "Unknown error"
+
+                    return response
+            step(req_id, "GET_JOB_STATUS_DB_QUERY_SUCCESS", (time.time() - task_start_time) * 1000)  # Log success # type: ignore
                 
-                response = {
-                    "job_id": job_id,
-                    "status": row['status'],
-                    "created_at": row['created_at'].isoformat() if row['created_at'] else None,
-                    "updated_at": row['updated_at'].isoformat() if row['updated_at'] else None,
-                    "from_cache": False
-                }
-
-                if row['status'] == 'done':
-                    response.update({
-                        "hasil_x": float(row['hasil_x']) if row['hasil_x'] is not None else 0.0,
-                        "hasil_y": float(row['hasil_y']) if row['hasil_y'] is not None else 0.0,
-                    })
-                elif row['status'] == 'error':
-                    response["error_message"] = row['error_message'] or "Unknown error"
-
-                return response
-            
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error retrieving job status: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error retrieving job status: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/jobs")
 def list_jobs(
@@ -316,30 +331,38 @@ def list_jobs(
 async def stream_job_updates(job_id: str):
     """Server-sent events endpoint for real-time job updates"""
     async def event_generator():
+        req_id = get_request_id()
+        task_start_time = time.time()
+        step(req_id, "STREAM_JOB_UPDATES_START", 0)  # Log the start of streaming # type: ignore
         # Subscribe to Redis channel
         pubsub = redis_client.pubsub()
         channel = f"lok_notify:{job_id}"
         pubsub.subscribe(channel)
         
-        try:
-            # Send initial status
-            status = get_status(job_id)
-            yield f"data: {json.dumps(status)}\n\n"
-            
-            # Listen for updates
-            while True:
-                msg = pubsub.get_message(ignore_subscribe_messages=True, timeout=1)
-                if msg and msg['type'] == 'message':
-                    data = msg['data']
-                    if isinstance(data, (bytes, bytearray)):
-                        data = data.decode('utf-8')
-                    yield f"data: {data}\n\n"
+        with StepTimer(req_id, "STREAM_JOB_UPDATES"): # type: ignore
+            try:
+                # Send initial status
+                status = get_status(job_id)
+                yield f"data: {json.dumps(status)}\n\n"
+                
+                # Listen for updates
+                while True:
+                    msg = pubsub.get_message(ignore_subscribe_messages=True, timeout=1)
+                    if msg and msg['type'] == 'message':
+                        data = msg['data']
+                        if isinstance(data, (bytes, bytearray)):
+                            data = data.decode('utf-8')
+                        yield f"data: {data}\n\n"
+                        step(req_id, "STREAM_JOB_UPDATES_SUCCESS", (time.time() - task_start_time) * 1000)  # Log success # type: ignore
 
-        except asyncio.CancelledError:
-            pass
-        finally:
-            pubsub.unsubscribe(channel)
-            pubsub.close()
+
+            except asyncio.CancelledError:
+                pass
+            finally:
+                pubsub.unsubscribe(channel)
+                pubsub.close()
+                StepTimer(req_id, "STREAM_JOB_UPDATES_END")  # type: ignore
+                step(req_id, "STREAM_JOB_UPDATES_END", (time.time() - task_start_time) * 1000) # Log end of streaming # type: ignore
     
     return StreamingResponse(
         event_generator(),
@@ -437,5 +460,3 @@ def get_statistics():
 if __name__ == "__main__":
     import uvicorn # type: ignore
     uvicorn.run(app, host="0.0.0.0", port=8000)
-    
-    

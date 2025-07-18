@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"time"
+	// Import portalocker untuk file locking
 )
 
 var Logger *log.Logger

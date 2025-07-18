@@ -154,6 +154,8 @@ services:
       - minio
       - redis
       - rabbitmq
+    volumes:
+      - ./metrics:/app/metrics
     networks:
       app-network:
         aliases:
@@ -175,6 +177,8 @@ services:
       - DB_PASSWORD=Rafi111703
       - DB_NAME=bismillahta
     command: python -m app.rabbit_consumer
+    volumes:
+      - ./metrics:/app/metrics
     depends_on:
       - rabbitmq
       - redis
@@ -197,6 +201,8 @@ services:
       - DB_PASSWORD=Rafi111703
       - DB_NAME=bismillahta
     command: celery -A app.tasks worker --loglevel=info --pool=prefork --concurrency=2 --hostname=worker1@%h
+    volumes:
+      - ./metrics:/app/metrics
     depends_on:
       - rabbitmq
       - redis
