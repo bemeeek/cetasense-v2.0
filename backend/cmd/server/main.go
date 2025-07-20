@@ -102,7 +102,7 @@ func setupHealthRoutes(router *mux.Router) {
 }
 
 func main() {
-	// ─── 1) Load config ────────────────────────────────────────────────────
+	// ─── 1) Load config ──────────────────────────────────────────────────
 	cfg := config.LoadConfig()
 
 	// ─── 2) Init DB ──────────────────────────────────────────────────────
@@ -130,12 +130,12 @@ func main() {
 	log.Printf("🔗 Connecting to Redis at %s, DB %d", redisAddr, cfg.RedisDB)
 
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: "",          // No password set
-		DB:       cfg.RedisDB, // Use default DB
-		// DialTimeout:  5 * time.Second,
-		// ReadTimeout:  3 * time.Second,
-		// WriteTimeout: 3 * time.Second,
+		Addr:         redisAddr,
+		Password:     "",          // No password set
+		DB:           cfg.RedisDB, // Use default DB
+		DialTimeout:  5 * time.Second,
+		ReadTimeout:  3 * time.Second,
+		WriteTimeout: 3 * time.Second,
 		PoolSize:     50,
 		MinIdleConns: 10,
 	})
@@ -179,9 +179,15 @@ func main() {
 	// ─── 6) Router & Middleware ──────────────────────────────────────────
 	router := mux.NewRouter()
 
-	router.Use(middleware.LoggingJSON)
+	cacheClient := cache.NewClient(redisAddr, cfg.RedisDB)
+
+	// Global middleware
+	router.Use(middleware.RequestID)
 	router.Use(middleware.TTFB)
+	router.Use(middleware.LoggingJSON)
 	router.Use(middleware.TimingMiddleware)
+	router.Use(middleware.CacheMiddleware(cacheClient, 5*time.Minute)) // Set cache TTL to 5 minutes
+	router.Use(loggingMiddleware, contentTypeMiddleware)
 
 	// Application routes
 	routes.RegisterRoomRoutes(router, roomHandler)
@@ -205,7 +211,6 @@ func main() {
 
 	router.HandleFunc("/api/log_frontend", handlers.HandleFrontendLog).Methods("POST")
 
-	cacheClient := cache.NewClient(redisAddr, cfg.RedisDB)
 	// router.Use(middleware.CacheMiddleware(cacheClient, 5*time.Minute)) // Set cache TTL to 5 minutes
 	// router.Use(loggingMiddleware, contentTypeMiddleware)
 
@@ -222,14 +227,6 @@ func main() {
 		}
 		return nil
 	})
-
-	// Global middleware
-	router.Use(middleware.RequestID)
-	router.Use(middleware.TTFB)
-	router.Use(middleware.LoggingJSON)
-	router.Use(middleware.TimingMiddleware)
-	router.Use(middleware.CacheMiddleware(cacheClient, 5*time.Minute)) // Set cache TTL to 5 minutes
-	router.Use(loggingMiddleware, contentTypeMiddleware)
 
 	setupHealthRoutes(router)
 

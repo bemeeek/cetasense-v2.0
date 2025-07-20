@@ -20,9 +20,11 @@ from .simple_step_metrics import init_steps_metrics, step, set_request_id, get_r
 load_dotenv()
 
 METRICS_FILE = os.getenv("METRICS_FILE", "step_metrics.csv")  # Use the same file as Golang
+SERVICE_NAME = "celery_worker"
+DEBUG_METRICS = os.getenv("DEBUG_METRICS", "false").lower() == "true"
 
 try:
-    init_steps_metrics(METRICS_FILE)  # FILE YANG SAMA
+    init_steps_metrics(METRICS_FILE, SERVICE_NAME, DEBUG_METRICS)  # FILE YANG SAMA
     logging.info(f"✅ Tasks module step metrics initialized: {METRICS_FILE}")
 except Exception as e:
     logging.error(f"Failed to initialize step metrics in tasks: {e}")
@@ -79,7 +81,10 @@ import time
 
 def notify_pubsub(job_id: str, status: str, x: Optional[float] = None, y: Optional[float] = None, error: Optional[str] = None) -> None:
     """Notify job status via Redis Pub/Sub with retry mechanism."""
+    req_id = get_request_id() or generate_request_id()
+    set_request_id(req_id)
     channel = f"{NOTIFY_CHANNEL_BASE}:{job_id}"
+
     msg: Dict[str, Any] = {
         "job_id": job_id,
         "status": status,
@@ -101,22 +106,28 @@ def notify_pubsub(job_id: str, status: str, x: Optional[float] = None, y: Option
         max_retries = 5
         retry_delay = 0.5  # 500ms
         
-        for attempt in range(max_retries):
-            # Publish message
-            result = redis_client.publish(channel, json.dumps(msg))
-            logger.info(f"📡 [Attempt {attempt + 1}] Published to {channel}: {msg}")
-            logger.info(f"📊 Subscribers count: {result}")
-            
-            if result > 0:
-                logger.info(f"✅ Message delivered to {result} subscribers")
-                break
-            else:
-                if attempt < max_retries - 1:
-                    logger.warning(f"⚠️  No subscribers for {channel}, retrying in {retry_delay}s...")
-                    time.sleep(retry_delay)
-                    retry_delay *= 1.5  # Exponential backoff
-                else:
-                    logger.warning(f"⚠️  Final attempt: No subscribers for {channel}")
+        with StepTimer(req_id, "NOTIFY_PUBSUB"):
+            for attempt in range(max_retries):
+                # Publish message
+                attempt_start = time.time()
+                result = redis_client.publish(channel, json.dumps(msg))
+                duration_ms = (time.time() - attempt_start) * 1000
+                step(req_id, f"NOTIFY_PUBSUB_ATTEMPT_{attempt + 1}", duration_ms)
+                logger.info(f"📡 [Attempt {attempt + 1}] Published to {channel}: {msg}")
+                logger.info(f"📊 Subscribers count: {result}")
+                
+                with StepTimer(req_id, "NOTIFY_PUBSUB_WAIT"):
+                    if result > 0:
+                        logger.info(f"✅ Message delivered to {result} subscribers")
+                        step(req_id, "NOTIFY_PUBSUB_SUCCESS", 0.0)
+                        break
+                    else:
+                        if attempt < max_retries - 1:
+                            logger.warning(f"⚠️  No subscribers for {channel}, retrying in {retry_delay}s...")
+                            time.sleep(retry_delay)
+                            retry_delay *= 1.5  # Exponential backoff
+                        else:
+                            logger.warning(f"⚠️  Final attempt: No subscribers for {channel}")
         
     except Exception as e:
         logger.error(f"❌ Error publishing to {channel}: {e}")
@@ -142,6 +153,9 @@ def localize_task(self, job_id: str) -> Dict[str, Any]:
     # generate a dedicated request‐ID for all metrics in this task
     req_id = get_request_id() or generate_request_id()
     set_request_id(req_id)
+
+    if DEBUG_METRICS:
+        logger.info(f"📊 [{SERVICE_NAME}] Task {job_id} using req_id: {req_id}")
     # Test Redis connection at start
     test_redis_connection()
 
@@ -149,7 +163,7 @@ def localize_task(self, job_id: str) -> Dict[str, Any]:
     time.sleep(2)
     
     task_start_time = time.time()
-    step(req_id, "localize_task_START", 0.0)  # Log start step
+    step(req_id, "CELERY_LOCALIZE_TASK_START", 0.0)  # Log start step
     # Inisialisasi variabel untuk cleanup
     csv_file_path: Optional[str] = None
     model_file_path: Optional[str] = None

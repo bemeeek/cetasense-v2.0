@@ -3,12 +3,9 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
-	"strings"
 	"time"
-
-	"github.com/dgrijalva/jwt-go"
 
 	"cetasense-v2.0/internal/metrics"
 	"cetasense-v2.0/internal/models"
@@ -30,69 +27,26 @@ func NewRoomHandler(repo repositories.RuanganRepository) *RoomHandler {
 	}
 }
 
-func (h *RoomHandler) Authenticate(w http.ResponseWriter, r *http.Request) bool {
-	tokenString := r.Header.Get("Authorization")
-	if tokenString == "" {
-		http.Error(w, "Authorization header is missing", http.StatusUnauthorized)
-		return false
-	}
-
-	tokenString = strings.TrimPrefix(tokenString, "Bearer ")
-
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte("your-secret-key"), nil
-	})
-
-	if err != nil {
-		http.Error(w, "Invalid token: "+err.Error(), http.StatusUnauthorized)
-		return false
-	}
-
-	if !token.Valid {
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
-		return false
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		http.Error(w, "Invalid token claims", http.StatusUnauthorized)
-		return false
-	}
-
-	// Check if the token is expired
-	if exp, ok := claims["exp"].(float64); ok {
-		if int64(exp) < time.Now().Unix() {
-			http.Error(w, "Token expired", http.StatusUnauthorized)
-			return false
-		}
-	}
-
-	return true
-}
-
-// CreateRoom dengan DTO
 func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
-	var request models.Ruangan
 	reqID := r.Context().Value(middleware.ReqIDKey).(string)
 	t0 := time.Now()
 	metrics.Step(reqID, "CREATE_ROOM_INIT", float64(time.Since(t0).Nanoseconds())/1e6)
+
+	var request models.Ruangan
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		log.Printf("Invalid request payload, reqID: %s, error: %v", reqID, err)
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 	metrics.Step(reqID, "CREATE_ROOM_DECODE", float64(time.Since(t0).Nanoseconds())/1e6)
 
-	t0 = time.Now()
 	if err := h.validate.Struct(request); err != nil {
+		log.Printf("Validation error, reqID: %s, error: %v", reqID, err)
 		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 	metrics.Step(reqID, "CREATE_ROOM_VALIDATE", float64(time.Since(t0).Nanoseconds())/1e6)
 
-	t0 = time.Now()
 	room := models.Ruangan{
 		NamaRuangan: request.NamaRuangan,
 		Panjang:     request.Panjang,
@@ -103,10 +57,9 @@ func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 		Posisi_Y_RX: request.Posisi_Y_RX,
 	}
 	room.GenerateID()
-	metrics.Step(reqID, "CREATE_ROOM_INIT", float64(time.Since(t0).Nanoseconds())/1e6)
 
-	t0 = time.Now()
 	if err := h.repo.Create(r.Context(), &room); err != nil {
+		log.Printf("Database insert error, reqID: %s, error: %v", reqID, err)
 		http.Error(w, "Failed to create room: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -115,30 +68,31 @@ func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusCreated, room)
 }
 
-// UpdateRoom dengan DTO
 func (h *RoomHandler) UpdateRoom(w http.ResponseWriter, r *http.Request) {
 	reqID := r.Context().Value(middleware.ReqIDKey).(string)
 	t0 := time.Now()
+
 	vars := mux.Vars(r)
 	id := vars["id"]
+	metrics.Step(reqID, "UPDATE_ROOM_START", float64(time.Since(t0).Nanoseconds())/1e6)
 
 	var request models.UpdateRuanganRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		log.Printf("Invalid request payload, reqID: %s, error: %v", reqID, err)
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 	metrics.Step(reqID, "UPDATE_ROOM_DECODE", float64(time.Since(t0).Nanoseconds())/1e6)
 
-	t0 = time.Now()
 	if err := h.validate.Struct(request); err != nil {
+		log.Printf("Validation error, reqID: %s, error: %v", reqID, err)
 		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 	metrics.Step(reqID, "UPDATE_ROOM_VALIDATE", float64(time.Since(t0).Nanoseconds())/1e6)
 
-	t0 = time.Now()
 	room := models.Ruangan{
-		ID:          id, // ID diambil dari URL
+		ID:          id,
 		NamaRuangan: request.NamaRuangan,
 		Panjang:     request.Panjang,
 		Lebar:       request.Lebar,
@@ -149,12 +103,13 @@ func (h *RoomHandler) UpdateRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	metrics.Step(reqID, "UPDATE_ROOM_INIT", float64(time.Since(t0).Nanoseconds())/1e6)
 
-	t0 = time.Now()
 	if err := h.repo.Update(r.Context(), &room); err != nil {
 		if err == sql.ErrNoRows {
+			log.Printf("Room not found, reqID: %s, roomID: %s", reqID, id)
 			respondError(w, http.StatusNotFound, "Room not found")
 			return
 		}
+		log.Printf("Database update error, reqID: %s, error: %v", reqID, err)
 		http.Error(w, "Failed to update room: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -163,51 +118,84 @@ func (h *RoomHandler) UpdateRoom(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, room)
 }
 
-func (h *RoomHandler) DeleteRoom(w http.ResponseWriter, r *http.Request) {
-	reqID := r.Context().Value(middleware.ReqIDKey).(string)
-	vars := mux.Vars(r)
-	id := vars["id"]
-	t0 := time.Now()
-
-	metrics.Step(reqID, "DELETE_ROOM_INIT", float64(time.Since(t0).Nanoseconds())/1e6)
-	if err := h.repo.Delete(r.Context(), id); err != nil {
-		if err == sql.ErrNoRows {
-			respondError(w, http.StatusNotFound, "Room not found")
-			return
-		}
-		http.Error(w, "Failed to delete room: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	metrics.Step(reqID, "DELETE_ROOM", float64(time.Since(t0).Nanoseconds())/1e6)
-
-	w.WriteHeader(http.StatusNoContent)
-}
 func (h *RoomHandler) GetAllRooms(w http.ResponseWriter, r *http.Request) {
 	reqID := r.Context().Value(middleware.ReqIDKey).(string)
 	t0 := time.Now()
+
+	// Get all rooms from the repository
 	rooms, err := h.repo.GetAll(r.Context())
 	if err != nil {
-		http.Error(w, "Failed to get rooms: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error retrieving rooms, reqID: %s, error: %v", reqID, err)
+		respondError(w, http.StatusInternalServerError, "Failed to retrieve rooms: "+err.Error())
 		return
 	}
-	metrics.Step(reqID, "GET_ALL_ROOMS", float64(time.Since(t0).Nanoseconds())/1e6)
+	metrics.Step(reqID, "GET_ALL_ROOMS_FETCH", float64(time.Since(t0).Nanoseconds())/1e6)
 
+	// Respond with the list of rooms
 	respondJSON(w, http.StatusOK, rooms)
+	metrics.Step(reqID, "GET_ALL_ROOMS_DONE", float64(time.Since(t0).Nanoseconds())/1e6)
 }
 
 func (h *RoomHandler) GetRoomByID(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+	reqID := r.Context().Value(middleware.ReqIDKey).(string)
+	t0 := time.Now()
 
-	room, err := h.repo.GetByID(r.Context(), id)
+	// Get room ID from URL parameters
+	roomID := mux.Vars(r)["id"]
+	if roomID == "" {
+		log.Printf("Room ID is required, reqID: %s", reqID)
+		respondError(w, http.StatusBadRequest, "Room ID is required")
+		return
+	}
+	metrics.Step(reqID, "GET_ROOM_BY_ID_VALIDATE", float64(time.Since(t0).Nanoseconds())/1e6)
+
+	// Fetch room by ID
+	room, err := h.repo.GetByID(r.Context(), roomID)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			log.Printf("Room not found, reqID: %s, roomID: %s", reqID, roomID)
 			respondError(w, http.StatusNotFound, "Room not found")
 			return
 		}
-		http.Error(w, "Failed to get room: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error retrieving room, reqID: %s, roomID: %s, error: %v", reqID, roomID, err)
+		respondError(w, http.StatusInternalServerError, "Failed to retrieve room: "+err.Error())
 		return
 	}
+	metrics.Step(reqID, "GET_ROOM_BY_ID_FETCH", float64(time.Since(t0).Nanoseconds())/1e6)
 
+	// Respond with room details
 	respondJSON(w, http.StatusOK, room)
+	metrics.Step(reqID, "GET_ROOM_BY_ID_DONE", float64(time.Since(t0).Nanoseconds())/1e6)
+}
+
+func (h *RoomHandler) DeleteRoom(w http.ResponseWriter, r *http.Request) {
+	reqID := r.Context().Value(middleware.ReqIDKey).(string)
+	t0 := time.Now()
+	metrics.Step(reqID, "DELETE_ROOM_INIT", float64(time.Since(t0).Nanoseconds())/1e6)
+
+	// Get room ID from URL parameters
+	roomID := mux.Vars(r)["id"]
+	if roomID == "" {
+		log.Printf("Room ID is required, reqID: %s", reqID)
+		respondError(w, http.StatusBadRequest, "Room ID is required")
+		return
+	}
+	metrics.Step(reqID, "DELETE_ROOM_VALIDATE", float64(time.Since(t0).Nanoseconds())/1e6)
+
+	// Delete room from the repository
+	if err := h.repo.Delete(r.Context(), roomID); err != nil {
+		if err == sql.ErrNoRows {
+			log.Printf("Room not found for deletion, reqID: %s, roomID: %s", reqID, roomID)
+			respondError(w, http.StatusNotFound, "Room not found")
+			return
+		}
+		log.Printf("Error deleting room, reqID: %s, roomID: %s, error: %v", reqID, roomID, err)
+		respondError(w, http.StatusInternalServerError, "Failed to delete room: "+err.Error())
+		return
+	}
+	metrics.Step(reqID, "DELETE_ROOM_DB_DELETE", float64(time.Since(t0).Nanoseconds())/1e6)
+
+	// Respond with success
+	respondJSON(w, http.StatusNoContent, nil)
+	metrics.Step(reqID, "DELETE_ROOM_DONE", float64(time.Since(t0).Nanoseconds())/1e6)
 }

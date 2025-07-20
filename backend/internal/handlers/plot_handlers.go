@@ -139,6 +139,7 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 	}
 	metrics.Step(reqID, "GET_PLOTS_PROCESS_CSV", float64(time.Since(t0).Nanoseconds())/1e6)
 
+	t0 = time.Now()
 	// 7) kirim JSON
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"avgAll":       avgAll,

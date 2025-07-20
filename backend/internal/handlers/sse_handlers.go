@@ -63,16 +63,19 @@ func LocalizationHandler(rdb *redis.Client) http.HandlerFunc {
 		}
 		metrics.Step(reqID, "SSE_LOCALIZATION_SUBSCRIBE", float64(time.Since(t0).Nanoseconds())/1e6)
 
+		t0 = time.Now()
 		// send “connected” event
 		connected := SSEMessage{
 			JobID:     jobID,
 			Status:    "connected",
 			Timestamp: time.Now().Format(time.RFC3339),
 		}
+		metrics.Step(reqID, "SSE_LOCALIZATION_CONNECTED", float64(time.Since(t0).Nanoseconds())/1e6)
 		if d, err := json.Marshal(connected); err == nil {
 			fmt.Fprintf(w, "data: %s\n\n", d)
 			flusher.Flush()
 		}
+		metrics.Step(reqID, "SSE_LOCALIZATION_CONNECTED_DONE", float64(time.Since(t0).Nanoseconds())/1e6)
 
 		// kirim cached status bila ada
 		t0 = time.Now()
@@ -107,8 +110,32 @@ func LocalizationHandler(rdb *redis.Client) http.HandlerFunc {
 				if !ok {
 					return
 				}
+				// Waktu ketika message diterima dari Redis
+				redisReceiveTime := time.Now()
+				metrics.Step(reqID, "SSE_REDIS_MESSAGE_RECEIVED", float64(time.Since(t0).Nanoseconds())/1e6)
+
+				// Parsing message untuk mendapatkan info
+				var messageData map[string]interface{}
+				json.Unmarshal([]byte(m.Payload), &messageData)
+
+				// Waktu mulai send ke client
+				clientSendStart := time.Now()
 				fmt.Fprintf(w, "data: %s\n\n", m.Payload)
 				flusher.Flush()
+
+				// Log waktu send ke client
+				clientSendTime := float64(time.Since(clientSendStart).Nanoseconds()) / 1e6
+				metrics.Step(reqID, "SSE_CLIENT_SEND", clientSendTime)
+
+				// Log total processing time (Redis receive + Client send)
+				totalProcessTime := float64(time.Since(redisReceiveTime).Nanoseconds()) / 1e6
+				metrics.Step(reqID, "SSE_TOTAL_MESSAGE_PROCESS", totalProcessTime)
+
+				// Log dengan job_id jika ada
+				if jobID, ok := messageData["job_id"].(string); ok {
+					log.Printf("SSE message processed for job %s in %.2fms", jobID, totalProcessTime)
+				}
+
 				if strings.Contains(m.Payload, `"status":"done"`) || strings.Contains(m.Payload, `"status":"failed"`) {
 					return
 				}

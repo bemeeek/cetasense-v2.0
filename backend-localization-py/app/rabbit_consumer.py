@@ -1,5 +1,5 @@
 import os, json
-import pika
+import pika # type: ignore
 from app.db import get_connection, transaction, with_db_retry
 from .tasks import localize_task
 import time
@@ -19,6 +19,8 @@ from .simple_step_metrics import (
 )
 
 METRICS_FILE = os.getenv("METRICS_FILE", "step_metrics.csv")  # Use the same file as Golang
+SERVICE_NAME = "rabbitmq_consumer"
+DEBUG_METRICS = os.getenv("DEBUG_METRICS", "false").lower() == "true"
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -32,9 +34,16 @@ class RabbitMQConsumer:
         self.channel = None
         self.should_stop = False
 
-        try :
-            init_steps_metrics(METRICS_FILE)  # Initialize metrics with the same file as Golang
-            logger.info("✅ RabbitMQ Consumer step metrics initialized")
+        try:
+            # FIXED: Explicit service name initialization
+            init_steps_metrics(METRICS_FILE, SERVICE_NAME, DEBUG_METRICS)
+            logger.info(f"✅ RabbitMQ Consumer step metrics initialized: {SERVICE_NAME}")
+            
+            # Test logging immediately
+            test_req_id = generate_request_id()
+            step(test_req_id, "RABBITMQ_CONSUMER_INIT", 0.0)
+            logger.info(f"📊 Test metric logged for {SERVICE_NAME}")
+            
         except Exception as e:
             logger.error(f"Failed to initialize step metrics: {e}")
 
@@ -44,30 +53,39 @@ class RabbitMQConsumer:
         username = os.getenv("RABBITMQ_DEFAULT_USER", "rabbit")
         password = os.getenv("RABBITMQ_DEFAULT_PASS", "secret123")
 
-        credentials = pika.PlainCredentials(username, password)
-        params = pika.ConnectionParameters(
-            host=host,
-            port=port,
-            virtual_host="/",
-            credentials=credentials,
-            heartbeat=600,
-            blocked_connection_timeout=300,
+        logger.info(f"Connecting to RabbitMQ at {host}:{port} with user {username}")
+
+        try:
+            credentials = pika.PlainCredentials(username, password)
+            params = pika.ConnectionParameters(
+                host=host,
+                port=port,
+                virtual_host="/",
+                credentials=credentials,
+                heartbeat=600,
+                blocked_connection_timeout=300,
         )
-        self.connection = pika.BlockingConnection(params)
-        self.channel = self.connection.channel()
-        self.channel.queue_declare(queue=QUEUE_NAME, durable=True)
-        self.channel.basic_qos(prefetch_count=1)
-        logger.info(f"Connected to RabbitMQ at {host}:{port}, waiting for messages in {QUEUE_NAME}...")
+            self.connection = pika.BlockingConnection(params)
+            self.channel = self.connection.channel()
+            self.channel.queue_declare(queue=QUEUE_NAME, durable=True)
+            self.channel.basic_qos(prefetch_count=1)
+            logger.info(f"Connected to RabbitMQ at {host}:{port}, waiting for messages in {QUEUE_NAME}...")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to connect to RabbitMQ: {e}")
+            return False
     
     def process_message(self, ch, method, properties, body):
+        req_id = None
+        task_start_time = time.time()
         try :
-            step("RABBITMQ_CONSUMER_PROCESS_MESSAGE", "START", 0)  # Log the start of processing
             try :
                 data = json.loads(body)
                 req_id = data.get("req_id") or generate_request_id()
                 set_request_id(req_id)
-                step(req_id, "RABBITMQ_CONSUMER_PROCESS_MESSAGE", 0)  # Log the start of processing
-                task_start_time = time.time()
+
+                # 2) Baru log START dengan req_id yang sudah tersedia
+                step(req_id, "RABBITMQ_CONSUMER_PROCESS_MESSAGE_START", 0.0)
                 job_id = data.get("job_id")
                 if not job_id:
                     logger.warning("Received message without job_id, skipping")
@@ -94,7 +112,7 @@ class RabbitMQConsumer:
                 ch.basic_ack(delivery_tag=method.delivery_tag)
                 return
             total_task_time = (time.time() - task_start_time) * 1000
-            step(req_id, "RABBITMQ_CONSUMER_MESSAGE_VALIDATION", total_task_time)  # Log validation step
+            step(req_id, "RABBITMQ_CONSUMER_MESSAGE_SUCCESS", total_task_time)  # Log success step
             logger.info(f"Received job_id={job_id}, id_data={id_data}, id_metode={id_metode}, id_ruangan={id_ruangan}, created_at={created_at}")
 
             @with_db_retry(max_retries=3, delay=2)

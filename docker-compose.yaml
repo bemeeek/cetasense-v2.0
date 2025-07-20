@@ -105,7 +105,6 @@ services:
   go_gateway:
     build:
       context: ./backend
-    # container_name: go_gateway_1
     image: go_gateway:latest
     restart: on-failure
     env_file:
@@ -146,7 +145,7 @@ services:
       - DB_USER=root
       - DB_PASSWORD=Rafi111703
       - DB_NAME=bismillahta
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    command: python -m app.main
     expose:
       - "8000"
     depends_on:
