@@ -26,37 +26,43 @@ func NewPlotHandler(csvRepo *repositories.CSVFileRepository, minioClient *minio.
 }
 
 func (h *PlotHandler) ListCSV(w http.ResponseWriter, r *http.Request) {
+	reqID := r.Context().Value(middleware.ReqIDKey).(string)
+	start := time.Now()
 	files, err := h.csvRepo.GetAll(r.Context())
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to list CSV files: "+err.Error())
 		return
 	}
+	metrics.Step(reqID, "LIST_CSV_FETCH_ALL", float64(time.Since(start).Milliseconds()))
 	respondJSON(w, http.StatusOK, files)
 }
 
 func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
-	// 1) ambil metadata & object CSV
+	// Retrieve request ID from context.
 	reqID := r.Context().Value(middleware.ReqIDKey).(string)
-	t0 := time.Now()
+
+	// 1) Get metadata for the CSV
 	id := mux.Vars(r)["id"]
+	start := time.Now()
 	meta, err := h.csvRepo.GetByID(r.Context(), id)
 	if err != nil {
 		respondError(w, http.StatusNotFound, "CSV not found")
 		return
 	}
-	metrics.Step(reqID, "GET_PLOTS_GET_BY_ID", float64(time.Since(t0).Nanoseconds())/1e6)
+	metrics.Step(reqID, "GET_PLOTS_GET_BY_ID", float64(time.Since(start).Milliseconds()))
 
-	t0 = time.Now()
+	// 2) Fetch the CSV object from MinIO
+	start = time.Now()
 	obj, err := h.minioClient.GetObject(r.Context(), h.bucketName, meta.ObjectPath, minio.GetObjectOptions{})
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to fetch CSV")
 		return
 	}
-	metrics.Step(reqID, "GET_PLOTS_GET_OBJECT", float64(time.Since(t0).Nanoseconds())/1e6)
+	metrics.Step(reqID, "GET_PLOTS_GET_OBJECT", float64(time.Since(start).Milliseconds()))
 	defer obj.Close()
 
-	// 2) parse CSV → [][]float64 with shape [nPackets][3*30]
-	t0 = time.Now()
+	// 3) Parse CSV into [][]float64 with shape [nPackets][3*30]
+	start = time.Now()
 	reader := csv.NewReader(obj)
 	var data [][]float64
 	if _, err := reader.Read(); err != nil {
@@ -78,9 +84,12 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 		}
 		data = append(data, vals)
 	}
+	metrics.Step(reqID, "GET_PLOTS_PARSE_CSV", float64(time.Since(start).Milliseconds()))
+
+	start_processing := time.Now()
+	// 4) Process CSV: compute averages per antenna/subcarrier, snapshots, etc.
 	n := len(data) // e.g. 1500
 	sub := 30      // jumlah subcarrier
-	// 3) hitung average per-antenna/subcarrier
 	avgAll := make([][]float64, 3)
 	for ant := 0; ant < 3; ant++ {
 		avgAll[ant] = make([]float64, sub)
@@ -93,12 +102,10 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 4) mean per antenna per-subcarrier
 	meanAnt1 := avgAll[0]
 	meanAnt2 := avgAll[1]
 	meanAnt3 := avgAll[2]
 
-	// 5) snapshots untuk ant1: paket 1, tengah, terakhir
 	mid := n/2 - 1
 	snapshots1 := map[string][]float64{
 		"pkt1": data[0][0:sub],
@@ -128,7 +135,6 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 6) overallMean per antenna
 	overallMean := make([]float64, 3)
 	for ant := 0; ant < 3; ant++ {
 		sum := 0.0
@@ -137,10 +143,10 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 		}
 		overallMean[ant] = sum / float64(sub)
 	}
-	metrics.Step(reqID, "GET_PLOTS_PROCESS_CSV", float64(time.Since(t0).Nanoseconds())/1e6)
+	metrics.Step(reqID, "GET_PLOTS_PROCESS_CSV", float64(time.Since(start_processing).Milliseconds()))
 
-	t0 = time.Now()
-	// 7) kirim JSON
+	// 5) Send JSON response containing all computed metrics
+	start = time.Now()
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"avgAll":       avgAll,
 		"avgPerPacket": avgPerPacket,
@@ -151,8 +157,8 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 		"snapshots2":   snapshots2,
 		"snapshots3":   snapshots3,
 		"overallMean":  overallMean,
-		"subcarriers":  sub, // =1…30
+		"subcarriers":  sub,
 		"antennas":     []string{"Ant 1", "Ant 2", "Ant 3"},
 	})
-	metrics.Step(reqID, "GET_PLOTS_SEND_RESPONSE", float64(time.Since(t0).Nanoseconds())/1e6)
+	metrics.Step(reqID, "GET_PLOTS_SEND_RESPONSE", float64(time.Since(start).Milliseconds()))
 }
