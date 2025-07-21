@@ -39,7 +39,7 @@ func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
-	metrics.Step(reqID, "CREATE_ROOM_DECODE", float64(time.Since(decodeStart).Milliseconds()))
+	metrics.Step(reqID, "CREATE_ROOM_DECODE", float64(time.Since(decodeStart).Nanoseconds())/1e6)
 
 	// Validate request payload
 	validateStart := time.Now()
@@ -48,7 +48,7 @@ func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	metrics.Step(reqID, "CREATE_ROOM_VALIDATE", float64(time.Since(validateStart).Milliseconds()))
+	metrics.Step(reqID, "CREATE_ROOM_VALIDATE", float64(time.Since(validateStart).Nanoseconds())/1e6)
 
 	// Process request and generate room data
 	processStart := time.Now()
@@ -62,7 +62,7 @@ func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 		Posisi_Y_RX: request.Posisi_Y_RX,
 	}
 	room.GenerateID()
-	metrics.Step(reqID, "CREATE_ROOM_PROCESS", float64(time.Since(processStart).Milliseconds()))
+	metrics.Step(reqID, "CREATE_ROOM_PROCESS", float64(time.Since(processStart).Nanoseconds())/1e6)
 
 	// Save room to repository
 	saveStart := time.Now()
@@ -71,10 +71,10 @@ func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to create room: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	metrics.Step(reqID, "CREATE_ROOM_SAVE", float64(time.Since(saveStart).Milliseconds()))
+	metrics.Step(reqID, "CREATE_ROOM_SAVE", float64(time.Since(saveStart).Nanoseconds())/1e6)
 
 	// Log total processing time
-	metrics.Step(reqID, "CREATE_ROOM_TOTAL", float64(time.Since(totalStart).Milliseconds()))
+	metrics.Step(reqID, "CREATE_ROOM_TOTAL", float64(time.Since(totalStart).Nanoseconds())/1e6)
 	respondJSON(w, http.StatusCreated, room)
 }
 
@@ -86,7 +86,7 @@ func (h *RoomHandler) UpdateRoom(w http.ResponseWriter, r *http.Request) {
 	idStart := time.Now()
 	vars := mux.Vars(r)
 	id := vars["id"]
-	metrics.Step(reqID, "UPDATE_ROOM_GET_ID", float64(time.Since(idStart).Milliseconds()))
+	metrics.Step(reqID, "UPDATE_ROOM_GET_ID", float64(time.Since(idStart).Nanoseconds())/1e6)
 	if id == "" {
 		log.Printf("Room ID is required, reqID: %s", reqID)
 		respondError(w, http.StatusBadRequest, "Room ID is required")
@@ -101,7 +101,7 @@ func (h *RoomHandler) UpdateRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
-	metrics.Step(reqID, "UPDATE_ROOM_DECODE", float64(time.Since(decodeStart).Milliseconds()))
+	metrics.Step(reqID, "UPDATE_ROOM_DECODE", float64(time.Since(decodeStart).Nanoseconds())/1e6)
 
 	// Validate request
 	validateStart := time.Now()
@@ -110,7 +110,7 @@ func (h *RoomHandler) UpdateRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	metrics.Step(reqID, "UPDATE_ROOM_VALIDATE", float64(time.Since(validateStart).Milliseconds()))
+	metrics.Step(reqID, "UPDATE_ROOM_VALIDATE", float64(time.Since(validateStart).Nanoseconds())/1e6)
 
 	// Prepare room model
 	processStart := time.Now()
@@ -124,7 +124,7 @@ func (h *RoomHandler) UpdateRoom(w http.ResponseWriter, r *http.Request) {
 		Posisi_X_RX: request.Posisi_X_RX,
 		Posisi_Y_RX: request.Posisi_Y_RX,
 	}
-	metrics.Step(reqID, "UPDATE_ROOM_PROCESS", float64(time.Since(processStart).Milliseconds()))
+	metrics.Step(reqID, "UPDATE_ROOM_PROCESS", float64(time.Since(processStart).Nanoseconds())/1e6)
 
 	// Update room in the repository
 	saveStart := time.Now()
@@ -138,10 +138,10 @@ func (h *RoomHandler) UpdateRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to update room: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	metrics.Step(reqID, "UPDATE_ROOM_SAVE", float64(time.Since(saveStart).Milliseconds()))
+	metrics.Step(reqID, "UPDATE_ROOM_SAVE", float64(time.Since(saveStart).Nanoseconds())/1e6)
 
 	// Log total update time
-	metrics.Step(reqID, "UPDATE_ROOM_TOTAL", float64(time.Since(totalStart).Milliseconds()))
+	metrics.Step(reqID, "UPDATE_ROOM_TOTAL", float64(time.Since(totalStart).Nanoseconds())/1e6)
 	respondJSON(w, http.StatusOK, room)
 }
 

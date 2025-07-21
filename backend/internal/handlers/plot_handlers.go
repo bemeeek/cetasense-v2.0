@@ -49,7 +49,7 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusNotFound, "CSV not found")
 		return
 	}
-	metrics.Step(reqID, "GET_PLOTS_GET_BY_ID", float64(time.Since(start).Milliseconds()))
+	metrics.Step(reqID, "GET_PLOTS_GET_BY_ID", float64(time.Since(start).Nanoseconds())/1e6)
 
 	// 2) Fetch the CSV object from MinIO
 	start = time.Now()
@@ -58,7 +58,7 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusInternalServerError, "Failed to fetch CSV")
 		return
 	}
-	metrics.Step(reqID, "GET_PLOTS_GET_OBJECT", float64(time.Since(start).Milliseconds()))
+	metrics.Step(reqID, "GET_PLOTS_GET_OBJECT", float64(time.Since(start).Nanoseconds())/1e6)
 	defer obj.Close()
 
 	// 3) Parse CSV into [][]float64 with shape [nPackets][3*30]
@@ -84,7 +84,7 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 		}
 		data = append(data, vals)
 	}
-	metrics.Step(reqID, "GET_PLOTS_PARSE_CSV", float64(time.Since(start).Milliseconds()))
+	metrics.Step(reqID, "GET_PLOTS_PARSE_CSV", float64(time.Since(start).Nanoseconds())/1e6)
 
 	start_processing := time.Now()
 	// 4) Process CSV: compute averages per antenna/subcarrier, snapshots, etc.
@@ -143,7 +143,7 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 		}
 		overallMean[ant] = sum / float64(sub)
 	}
-	metrics.Step(reqID, "GET_PLOTS_PROCESS_CSV", float64(time.Since(start_processing).Milliseconds()))
+	metrics.Step(reqID, "GET_PLOTS_PROCESS_CSV", float64(time.Since(start_processing).Nanoseconds())/1e6)
 
 	// 5) Send JSON response containing all computed metrics
 	start = time.Now()
@@ -160,5 +160,5 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 		"subcarriers":  sub,
 		"antennas":     []string{"Ant 1", "Ant 2", "Ant 3"},
 	})
-	metrics.Step(reqID, "GET_PLOTS_SEND_RESPONSE", float64(time.Since(start).Milliseconds()))
+	metrics.Step(reqID, "GET_PLOTS_SEND_RESPONSE", float64(time.Since(start).Nanoseconds())/1e6)
 }
