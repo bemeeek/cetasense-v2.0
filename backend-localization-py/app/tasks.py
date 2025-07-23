@@ -81,7 +81,7 @@ import time
 
 def notify_pubsub(job_id: str, status: str, x: Optional[float] = None, y: Optional[float] = None, error: Optional[str] = None) -> None:
     """Notify job status via Redis Pub/Sub with retry mechanism."""
-    req_id = get_request_id() or generate_request_id()
+    req_id = generate_request_id()
     set_request_id(req_id)
     channel = f"{NOTIFY_CHANNEL_BASE}:{job_id}"
 
@@ -172,7 +172,7 @@ def wait_for_subscriber(job_id: str, timeout_s=10):
 def localize_task(self, job_id: str) -> Dict[str, Any]:
     logger.info(f"🚀 Starting localization task for job {job_id}")
     # generate a dedicated request‐ID for all metrics in this task
-    req_id = get_request_id() or generate_request_id()
+    req_id = generate_request_id()
     set_request_id(req_id)
 
     if DEBUG_METRICS:

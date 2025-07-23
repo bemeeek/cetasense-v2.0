@@ -81,7 +81,7 @@ class RabbitMQConsumer:
         try :
             try :
                 data = json.loads(body)
-                req_id = data.get("req_id") or generate_request_id()
+                req_id = generate_request_id()
                 set_request_id(req_id)
 
                 # 2) Baru log START dengan req_id yang sudah tersedia
