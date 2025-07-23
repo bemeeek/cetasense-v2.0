@@ -90,19 +90,36 @@ def notify_pubsub(job_id: str, status: str, x: Optional[float] = None, y: Option
         "status": status,
         "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     }
-    
+
     if x is not None and y is not None:
         result_data: Dict[str, float] = {"hasil_x": x, "hasil_y": y}
         msg.update(result_data)
-    
+
     if error is not None:
         msg["error"] = error
-    
+
     try:
+        # Log the sending of the status message
+        logger.info(f"📡 Job {job_id}: Publishing status '{status}' to Redis")
+
+        # Memulai pencatatan waktu untuk status
+        start_time = time.time()  # Capture the start time
+
+        # Mulai langkah untuk status
+        step(req_id, f"NOTIFY_PUBSUB_{status.upper()}_START", 0.0)  # Placeholder step to mark the beginning
+
+        # Notify for different statuses
+        if status == "running":
+            logger.info(f"Job {job_id} is running, preparing for localization.")
+        elif status == "done":
+            logger.info(f"Job {job_id} localization is done, result: x={x}, y={y}")
+        elif status == "failed":
+            logger.error(f"Job {job_id} failed with error: {error}")
+
         # Check Redis connection first
         redis_client.ping()
-        
-        # Retry mechanism untuk publish
+
+        # Retry mechanism for publishing
         max_retries = 5
         retry_delay = 0.5  # 500ms
         
@@ -115,11 +132,10 @@ def notify_pubsub(job_id: str, status: str, x: Optional[float] = None, y: Option
                 step(req_id, f"NOTIFY_PUBSUB_ATTEMPT_{attempt + 1}", duration_ms)
                 logger.info(f"📡 [Attempt {attempt + 1}] Published to {channel}: {msg}")
                 logger.info(f"📊 Subscribers count: {result}")
-                
+
                 with StepTimer(req_id, "NOTIFY_PUBSUB_WAIT"):
                     if result > 0:
                         logger.info(f"✅ Message delivered to {result} subscribers")
-                        step(req_id, "NOTIFY_PUBSUB_SUCCESS", 0.0)
                         break
                     else:
                         if attempt < max_retries - 1:
@@ -128,7 +144,12 @@ def notify_pubsub(job_id: str, status: str, x: Optional[float] = None, y: Option
                             retry_delay *= 1.5  # Exponential backoff
                         else:
                             logger.warning(f"⚠️  Final attempt: No subscribers for {channel}")
-        
+
+        # Hitung durasi total untuk proses notify dan catat pada akhir
+        end_time = time.time()
+        total_duration = (end_time - start_time) * 1000  # Durasi dalam milidetik
+        step(req_id, f"NOTIFY_PUBSUB_{status.upper()}_END", total_duration)  # Langkah terakhir dengan durasi
+
     except Exception as e:
         logger.error(f"❌ Error publishing to {channel}: {e}")
         logger.error(f"Full traceback: {traceback.format_exc()}")

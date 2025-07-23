@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"cetasense-v2.0/internal/metrics"
@@ -102,41 +101,55 @@ func LocalizationHandler(rdb *redis.Client) http.HandlerFunc {
 			metrics.Step(reqID, "SSE_LOCALIZATION_CACHE", float64(time.Since(t0).Nanoseconds())/1e6)
 		}
 
+		// Menerima pesan dari Redis
 		ch := sub.Channel()
-		t0 = time.Now()
 		for {
 			select {
 			case m, ok := <-ch:
 				if !ok {
 					return
 				}
-				// Waktu ketika message diterima dari Redis
-				redisReceiveTime := time.Now()
-				metrics.Step(reqID, "SSE_REDIS_MESSAGE_RECEIVED", float64(time.Since(t0).Nanoseconds())/1e6)
 
-				// Parsing message untuk mendapatkan info
+				// Parsing payload JSON untuk mendapatkan status dan job_id
 				var messageData map[string]interface{}
 				json.Unmarshal([]byte(m.Payload), &messageData)
+				redisReceiveTime := time.Now()
 
-				// Waktu mulai send ke client
+				status := messageData["status"].(string)
+				jobID := messageData["job_id"].(string) // Asumsi job_id ada di setiap pesan
+
+				// Cek untuk membedakan pesan berdasarkan job_id atau status
+				if status == "running" {
+					log.Printf("Received 'running' message for job %s", jobID)
+					metrics.Step(reqID, "SSE_REDIS_MESSAGE_RECEIVED_RUNNING", float64(time.Since(t0).Nanoseconds())/1e6)
+				}
+
+				if status == "done" {
+					log.Printf("Received 'done' message for job %s", jobID)
+					metrics.Step(reqID, "SSE_REDIS_MESSAGE_RECEIVED_DONE", float64(time.Since(t0).Nanoseconds())/1e6)
+				}
+
+				// Proses berdasarkan status pesan
+				if status == "running" {
+					metrics.Step(reqID, "SSE_MESSAGE_RUNNING", float64(time.Since(t0).Nanoseconds())/1e6)
+				}
+
+				// Kirim pesan ke klien
 				clientSendStart := time.Now()
 				fmt.Fprintf(w, "data: %s\n\n", m.Payload)
 				flusher.Flush()
 
-				// Log waktu send ke client
-				clientSendTime := float64(time.Since(clientSendStart).Nanoseconds()) / 1e6
-				metrics.Step(reqID, "SSE_CLIENT_SEND", clientSendTime)
+				// Jika status "done", kita catat metrik untuk "done"
+				if status == "done" {
+					metrics.Step(reqID, "SSE_MESSAGE_DONE", float64(time.Since(clientSendStart).Nanoseconds())/1e6)
+				}
 
-				// Log total processing time (Redis receive + Client send)
+				// Hitung total waktu pemrosesan hanya sekali
 				totalProcessTime := float64(time.Since(redisReceiveTime).Nanoseconds()) / 1e6
 				metrics.Step(reqID, "SSE_TOTAL_MESSAGE_PROCESS", totalProcessTime)
 
-				// Log dengan job_id jika ada
-				if jobID, ok := messageData["job_id"].(string); ok {
-					log.Printf("SSE message processed for job %s in %.2fms", jobID, totalProcessTime)
-				}
-
-				if strings.Contains(m.Payload, `"status":"done"`) || strings.Contains(m.Payload, `"status":"failed"`) {
+				// Cek status "done" atau "failed" dan keluar jika sudah selesai
+				if status == "done" || status == "failed" {
 					return
 				}
 			case <-ctx.Done():
@@ -144,5 +157,6 @@ func LocalizationHandler(rdb *redis.Client) http.HandlerFunc {
 				return
 			}
 		}
+
 	}
 }
