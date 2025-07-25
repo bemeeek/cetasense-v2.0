@@ -123,27 +123,34 @@ def notify_pubsub(job_id: str, status: str, x: Optional[float] = None, y: Option
         max_retries = 5
         retry_delay = 0.5  # 500ms
         
-        with StepTimer(req_id, "NOTIFY_PUBSUB"):
-            for attempt in range(max_retries):
-                # Publish message
-                attempt_start = time.time()
-                result = redis_client.publish(channel, json.dumps(msg))
-                duration_ms = (time.time() - attempt_start) * 1000
-                step(req_id, f"NOTIFY_PUBSUB_ATTEMPT_{attempt + 1}", duration_ms)
-                logger.info(f"📡 [Attempt {attempt + 1}] Published to {channel}: {msg}")
-                logger.info(f"📊 Subscribers count: {result}")
+        if status.lower() == "running":
+            with StepTimer(req_id, "NOTIFY_PUBSUB_RUNNING"):
+                for attempt in range(max_retries):
+                    # Publish message
+                    attempt_start = time.time()
+                    result = redis_client.publish(channel, json.dumps(msg))
+                    duration_ms = (time.time() - attempt_start) * 1000
+                    step(req_id, f"NOTIFY_PUBSUB_ATTEMPT_{attempt + 1}", duration_ms)
+                    logger.info(f"📡 [Attempt {attempt + 1}] Published to {channel}: {msg}")
+                    logger.info(f"📊 Subscribers count: {result}")
 
-                with StepTimer(req_id, "NOTIFY_PUBSUB_WAIT"):
-                    if result > 0:
-                        logger.info(f"✅ Message delivered to {result} subscribers")
-                        break
-                    else:
-                        if attempt < max_retries - 1:
-                            logger.warning(f"⚠️  No subscribers for {channel}, retrying in {retry_delay}s...")
-                            time.sleep(retry_delay)
-                            retry_delay *= 1.5  # Exponential backoff
+                    with StepTimer(req_id, "NOTIFY_PUBSUB_WAIT"):
+                        if result > 0:
+                            logger.info(f"✅ Message delivered to {result} subscribers")
+                            break
                         else:
-                            logger.warning(f"⚠️  Final attempt: No subscribers for {channel}")
+                            if attempt < max_retries - 1:
+                                logger.warning(f"⚠️  No subscribers for {channel}, retrying in {retry_delay}s...")
+                                time.sleep(retry_delay)
+                                retry_delay *= 1.5  # Exponential backoff
+                            else:
+                                logger.warning(f"⚠️  Final attempt: No subscribers for {channel}")
+        else:
+            for attempt in range(max_retries):
+                result = redis_client.publish(channel, json.dumps(msg))
+                if result > 0:
+                    break
+                time.sleep(retry_delay)
 
         # Hitung durasi total untuk proses notify dan catat pada akhir
         end_time = time.time()

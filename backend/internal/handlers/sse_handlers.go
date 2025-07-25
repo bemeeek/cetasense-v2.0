@@ -145,11 +145,14 @@ func LocalizationHandler(rdb *redis.Client) http.HandlerFunc {
 				}
 
 				// Hitung total waktu pemrosesan hanya sekali
-				totalProcessTime := float64(time.Since(redisReceiveTime).Nanoseconds()) / 1e6
-				metrics.Step(reqID, "SSE_TOTAL_MESSAGE_PROCESS", totalProcessTime)
+				if status == "done" {
+					metrics.Step(reqID, "SSE_REDIS_MESSAGE_RECEIVED_DONE", float64(time.Since(t0).Nanoseconds())/1e6)
+					metrics.Step(reqID, "SSE_MESSAGE_DONE", float64(time.Since(t0).Nanoseconds())/1e6)
 
-				// Cek status "done" atau "failed" dan keluar jika sudah selesai
-				if status == "done" || status == "failed" {
+					// Hitung total waktu pemrosesan sekali (hanya untuk 'done')
+					totalProcessTime := float64(time.Since(redisReceiveTime).Nanoseconds()) / 1e6
+					metrics.Step(reqID, "SSE_TOTAL_MESSAGE_PROCESS", totalProcessTime)
+
 					return
 				}
 			case <-ctx.Done():
