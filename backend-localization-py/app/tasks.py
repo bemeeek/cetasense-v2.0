@@ -124,7 +124,7 @@ def notify_pubsub(job_id: str, status: str, x: Optional[float] = None, y: Option
         retry_delay = 0.5  # 500ms
         
         if status.lower() == "running":
-            with StepTimer(req_id, "NOTIFY_PUBSUB_RUNNING"):
+            with StepTimer(req_id, "NOTIFY_PUBSUB_RETRY_LOOP"):
                 for attempt in range(max_retries):
                     # Publish message
                     attempt_start = time.time()
