@@ -110,10 +110,12 @@ func LocalizationHandler(rdb *redis.Client) http.HandlerFunc {
 					return
 				}
 
+				// Reset waktu per pesan untuk metrics akurat
+				messageStartTime := time.Now()
+
 				// Parsing payload JSON untuk mendapatkan status dan job_id
 				var messageData map[string]interface{}
 				json.Unmarshal([]byte(m.Payload), &messageData)
-				redisReceiveTime := time.Now()
 
 				status := messageData["status"].(string)
 				jobID := messageData["job_id"].(string) // Asumsi job_id ada di setiap pesan
@@ -121,17 +123,13 @@ func LocalizationHandler(rdb *redis.Client) http.HandlerFunc {
 				// Cek untuk membedakan pesan berdasarkan job_id atau status
 				if status == "running" {
 					log.Printf("Received 'running' message for job %s", jobID)
-					metrics.Step(reqID, "SSE_REDIS_MESSAGE_RECEIVED_RUNNING", float64(time.Since(t0).Nanoseconds())/1e6)
+					// Gabungkan metrics untuk "running" menjadi satu
+					metrics.Step(reqID, "SSE_MESSAGE_RUNNING", float64(time.Since(messageStartTime).Nanoseconds())/1e6)
 				}
 
 				if status == "done" {
 					log.Printf("Received 'done' message for job %s", jobID)
-					metrics.Step(reqID, "SSE_REDIS_MESSAGE_RECEIVED_DONE", float64(time.Since(t0).Nanoseconds())/1e6)
-				}
-
-				// Proses berdasarkan status pesan
-				if status == "running" {
-					metrics.Step(reqID, "SSE_MESSAGE_RUNNING", float64(time.Since(t0).Nanoseconds())/1e6)
+					metrics.Step(reqID, "SSE_REDIS_MESSAGE_RECEIVED_DONE", float64(time.Since(messageStartTime).Nanoseconds())/1e6)
 				}
 
 				// Kirim pesan ke klien
@@ -142,17 +140,9 @@ func LocalizationHandler(rdb *redis.Client) http.HandlerFunc {
 				// Jika status "done", kita catat metrik untuk "done"
 				if status == "done" {
 					metrics.Step(reqID, "SSE_MESSAGE_DONE", float64(time.Since(clientSendStart).Nanoseconds())/1e6)
-				}
-
-				// Hitung total waktu pemrosesan hanya sekali
-				if status == "done" {
-					metrics.Step(reqID, "SSE_REDIS_MESSAGE_RECEIVED_DONE", float64(time.Since(t0).Nanoseconds())/1e6)
-					metrics.Step(reqID, "SSE_MESSAGE_DONE", float64(time.Since(t0).Nanoseconds())/1e6)
-
-					// Hitung total waktu pemrosesan sekali (hanya untuk 'done')
-					totalProcessTime := float64(time.Since(redisReceiveTime).Nanoseconds()) / 1e6
+					// Hitung total waktu pemrosesan sekali (hanya untuk 'done'), dari awal penerimaan
+					totalProcessTime := float64(time.Since(messageStartTime).Nanoseconds()) / 1e6
 					metrics.Step(reqID, "SSE_TOTAL_MESSAGE_PROCESS", totalProcessTime)
-
 					return
 				}
 			case <-ctx.Done():
