@@ -1,9 +1,9 @@
 // src/App.tsx
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { api } from "./services/api";
-import { sendFrontendMetric } from "./services/metrics";
+// import { sendFrontendMetric } from "./services/metrics";
 
 // Lazy‐load semua halaman
 const LandingPage        = lazy(() => import("./pages/LandingPage"));
@@ -28,28 +28,28 @@ const queryClient = new QueryClient({
 
 function App() {
   // Kirim metrik performance navigation timing
-  useEffect(() => {
-    const obs = new PerformanceObserver((list) => {
-      for (const nav of list.getEntries() as PerformanceNavigationTiming[]) {
-        sendFrontendMetric({
-          reqID:   "",
-          type:    "page",
-          route:   window.location.pathname,
-          ttfb_ms: nav.responseStart,
-          ttlb_ms: nav.loadEventEnd,
-        });
-        console.log(
-          `[PAGE] route=${window.location.pathname}` +
-            ` TTFB=${nav.responseStart.toFixed(2)}ms` +
-            ` TTLB=${nav.loadEventEnd.toFixed(2)}ms`
-        );
-      }
-      performance.clearResourceTimings();
-    });
+  // useEffect(() => {
+  //   const obs = new PerformanceObserver((list) => {
+  //     for (const nav of list.getEntries() as PerformanceNavigationTiming[]) {
+  //       sendFrontendMetric({
+  //         reqID:   "",
+  //         type:    "page",
+  //         route:   window.location.pathname,
+  //         ttfb_ms: nav.responseStart,
+  //         ttlb_ms: nav.loadEventEnd,
+  //       });
+  //       console.log(
+  //         `[PAGE] route=${window.location.pathname}` +
+  //           ` TTFB=${nav.responseStart.toFixed(2)}ms` +
+  //           ` TTLB=${nav.loadEventEnd.toFixed(2)}ms`
+  //       );
+  //     }
+  //     performance.clearResourceTimings();
+  //   });
 
-    obs.observe({ type: "navigation", buffered: true });
-    return () => obs.disconnect();
-  }, []);
+  //   obs.observe({ type: "navigation", buffered: true });
+  //   return () => obs.disconnect();
+  // }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

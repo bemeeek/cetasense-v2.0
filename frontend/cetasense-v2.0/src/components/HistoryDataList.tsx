@@ -56,7 +56,7 @@ const HistoryDataList: React.FC<HistoryDataListProps> = ({ uploads, setUploads }
   const handleSave = async () => {
     if (!newName || newName.trim() === '') return; // Do nothing if name is empty
     try {
-      const updated = await renameUpload(editingFileId!, newName); // Forcefully unwrapping as we already checked if editingFileId is valid
+      const updated = await renameUpload(editingFileId!, newName);
       setUploads(prev =>
         prev.map(x => (x.id === editingFileId ? { ...x, file_name: updated.file_name } : x))
       );

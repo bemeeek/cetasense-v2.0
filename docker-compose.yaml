@@ -23,7 +23,6 @@ services:
       context: ./frontend/cetasense-v2.0
       dockerfile: dockerfile
     image: frontend-react:latest
-    container_name: frontend-react
     restart: unless-stopped
     expose:
       - "80"

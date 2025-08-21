@@ -15,7 +15,7 @@ import Sidebar from '../components/sidebar/sidebar';
 import { WifiIcon } from '@heroicons/react/24/outline';
 import { TabSwitcherData } from '../components/switchertab/TabSwitcherData';
 import { CheckCircleIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
-import { GroundTruthForm } from '../components/GroundTruthForm';
+// import { GroundTruthForm } from '../components/GroundTruthForm';
 
 export const ComparisonPage: React.FC = () => {
   // 1) Metadata lists

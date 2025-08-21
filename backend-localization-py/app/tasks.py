@@ -175,7 +175,7 @@ def wait_for_subscriber(job_id: str, timeout_s=10):
     return False
 
 
-@celery.task(bind=True, max_retries=3, default_retry_delay=60)
+@celery.task(bind=True, max_retries=3, default_retry_delay=60, ack_late=True, queue=os.getenv("CELERY_QUEUE", "localize"))
 def localize_task(self, job_id: str) -> Dict[str, Any]:
     logger.info(f"🚀 Starting localization task for job {job_id}")
     # generate a dedicated request‐ID for all metrics in this task
@@ -317,7 +317,6 @@ def localize_task(self, job_id: str) -> Dict[str, Any]:
             "job_id": job_id,
         }
 
-    
     
             
     except Exception as e:

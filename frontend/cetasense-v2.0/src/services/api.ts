@@ -1,5 +1,5 @@
 import axios, { type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios';
-import { sendFrontendMetric } from "./metrics";  // ← pastikan path-nya benar
+// import { sendFrontendMetric } from "./metrics";  // ← pastikan path-nya benar
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -46,16 +46,16 @@ api.interceptors.response.use((response) => {
     ` TTLB=${ttlb.toFixed(2)}ms`
   );
 
-  const route = new URL(response.config.url!, window.location.origin).pathname;
+  // const route = new URL(response.config.url!, window.location.origin).pathname;
 
   // 5) kirim metrik
-  sendFrontendMetric({
-    reqID:   reqID,
-    type:    'fetch',
-    route:   route,
-    ttfb_ms: ttfb,
-    ttlb_ms: ttlb,
-  });
+  // sendFrontendMetric({
+  //   reqID:   reqID,
+  //   type:    'fetch',
+  //   route:   route,
+  //   ttfb_ms: ttfb,
+  //   ttlb_ms: ttlb,
+  // });
 
     // 6) clear old resource timing entries
   if ('clearResourceTimings' in performance) {
@@ -166,21 +166,11 @@ export const fetchCSIFileMeta = async (): Promise<CSIFileMeta[]> => {
   return resp.data
 }
 
-export const deleteUpload = async (id: string): Promise<void> => {
-  await api.delete(`/uploads/${id}`)
-}
-
 export const fetchRuangan = async (): Promise<Ruangan[]> => {
   const resp = await api.get<Ruangan[]>('/ruangan');
   console.log('🛠️ fetchRuangan resp.data =', resp.data);
   return resp.data ?? [];
 }
-
-
-export const renameUpload = async (id: string, new_name: string): Promise<CSIFileMeta> => {
-  const resp = await api.put<CSIFileMeta>(`/uploads/${id}`, { new_name });  // Menggunakan new_name untuk parameter
-  return resp.data;
-};
 
 export const createRoom = (room: RuanganCreate) =>
   api.post<RuanganCreate>('/ruangan', room);
@@ -209,6 +199,19 @@ export const uploadCSV = async (
   });
 };
 
+export const renameUpload = async (
+  id: string, 
+  new_name: string
+): Promise<CSIFileMeta> => {
+  const resp = await api.put<CSIFileMeta>(`/uploads/${id}`, { new_name }); 
+  return resp.data;
+};
+
+export const deleteUpload = async (
+  id: string
+): Promise<void> => {
+  await api.delete(`/uploads/${id}`)
+}
 
 export const uploadMethod = async (
   file: File,
@@ -251,7 +254,6 @@ export const renameMethod = async (
  * Buka koneksi SSE ke Go-gateway untuk job_id tertentu.
  * Harus dipanggil sebelum localize() sehingga subscriber sudah siap
  */
-
 
 
 export function listenLocalizationResult(

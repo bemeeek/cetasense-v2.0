@@ -28,6 +28,8 @@ logger = logging.getLogger(__name__)
 # RABBIT_URL = os.getenv("amqp://guest:guest@localhost:5672//")
 QUEUE_NAME = os.getenv("RABBITMQ_QUEUE_NAME", "lok_requests")  # Default to 'lok_requests' if not set
 
+prefetch = int(os.getenv("RABBITMQ_PREFETCH", 1))  # Default to 1 if not set
+
 class RabbitMQConsumer:
     def __init__(self):
         self.connection = None
@@ -68,7 +70,7 @@ class RabbitMQConsumer:
             self.connection = pika.BlockingConnection(params)
             self.channel = self.connection.channel()
             self.channel.queue_declare(queue=QUEUE_NAME, durable=True)
-            self.channel.basic_qos(prefetch_count=1)
+            self.channel.basic_qos(prefetch_count=prefetch)
             logger.info(f"Connected to RabbitMQ at {host}:{port}, waiting for messages in {QUEUE_NAME}...")
             return True
         except Exception as e:

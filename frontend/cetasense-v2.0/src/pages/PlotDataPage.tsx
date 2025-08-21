@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import PlotDataComponent, { type PlotData } from "../components/PlotData";
+import PlotDataComponent, { type BnrHandlerResponse } from "../components/PlotData"; // ← Ubah ini
 import { api, fetchCSIFileMeta, type CSIFileMeta } from "../services/api";
 import Sidebar from "../components/sidebar/sidebar";
 import { WifiIcon } from "@heroicons/react/24/outline";
@@ -8,7 +8,7 @@ import { TabSwitcherData } from "../components/switchertab/TabSwitcherData";
 const PlotPage: React.FC = () => {
   const [files, setFiles] = useState<CSIFileMeta[]>([]);
   const [selected, setSelected] = useState<CSIFileMeta | null>(null);
-  const [plotData, setPlotData] = useState<PlotData | null>(null);
+  const [plotData, setPlotData] = useState<BnrHandlerResponse | null>(null); // ← Ubah ini
   const [loading, setLoading] = useState(false);
 
   // Load list of CSV files

@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"cetasense-v2.0/config"
-	"cetasense-v2.0/internal/metrics"
 	"cetasense-v2.0/internal/rabbit"
 	"cetasense-v2.0/middleware"
 	"github.com/google/uuid"
@@ -35,9 +33,6 @@ func NewLocalizeHandler(cfg *config.Config) http.HandlerFunc {
 			return
 		}
 		jobID := uuid.New().String()
-		t0 := time.Now()
-		metrics.Step(reqID, "LOCALIZATION_START", float64(time.Since(t0).Nanoseconds())/1e6)
-
 		conn, ch, err := rabbit.NewChannel(cfg)
 		if err != nil {
 			http.Error(w, "Failed to connect to RabbitMQ: "+err.Error(), http.StatusInternalServerError)
@@ -53,7 +48,6 @@ func NewLocalizeHandler(cfg *config.Config) http.HandlerFunc {
 			}
 		}()
 
-		t0 = time.Now()
 		body, _ := json.Marshal(map[string]interface{}{
 			"req_id":     reqID,
 			"job_id":     jobID,
@@ -61,15 +55,12 @@ func NewLocalizeHandler(cfg *config.Config) http.HandlerFunc {
 			"id_metode":  req.IDMetode,
 			"id_ruangan": req.IDRuangan,
 		})
-		metrics.Step(reqID, "LOCALIZATION_PUBLISH", float64(time.Since(t0).Nanoseconds())/1e6)
 
-		t0 = time.Now()
 		err = ch.PublishWithContext(r.Context(), "", "lok_requests", false, false,
 			amqp.Publishing{
 				ContentType: "application/json",
 				Body:        body,
 			})
-		metrics.Step(reqID, "LOCALIZATION_PUBLISH_DONE", float64(time.Since(t0).Nanoseconds())/1e6)
 		fmt.Println("Published message to RabbitMQ for localization job:", string(body))
 		if err != nil {
 			http.Error(w, "Failed to publish message to RabbitMQ: "+err.Error(), http.StatusInternalServerError)
