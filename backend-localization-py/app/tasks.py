@@ -44,7 +44,7 @@ def test_redis_connection():
     try:
         redis_client.ping()
         logger.info("✅ Python Redis connected successfully")
-        
+
         # Test publish
         test_channel = "test_channel"
         test_msg = {"test": "connection_test", "timestamp": datetime.now().isoformat()}
@@ -175,7 +175,7 @@ def wait_for_subscriber(job_id: str, timeout_s=10):
     return False
 
 
-@celery.task(bind=True, max_retries=3, default_retry_delay=60, ack_late=True, queue=os.getenv("CELERY_QUEUE", "localize"))
+@celery.task(bind=True, max_retries=3, default_retry_delay=60)
 def localize_task(self, job_id: str) -> Dict[str, Any]:
     logger.info(f"🚀 Starting localization task for job {job_id}")
     # generate a dedicated request‐ID for all metrics in this task
@@ -286,15 +286,14 @@ def localize_task(self, job_id: str) -> Dict[str, Any]:
             logger.info(f"🎯 Job {job_id}: localization result: x={x}, y={y}")
         
         # ===== SAVE TO DATABASE =====
-        hasil_id = str(uuid4())
         with StepTimer(req_id, "SAVE_TO_MARIADB_DATABASE"):
             with transaction() as conn:
                 with conn.cursor() as cur:
                     cur.execute(
-                        "INSERT INTO hasil_lokalisasi "
-                        "(id, hasil_x, hasil_y, id_data, id_metode, id_ruangan) "
+                        "INSERT INTO hasil_lokalisasi"
+                        "(id, hasil_x, hasil_y, id_data, id_metode, id_ruangan)"
                         "VALUES (%s,%s,%s,%s,%s,%s)",
-                        (hasil_id, x, y, data_id, metode_id, ruangan_id)
+                        (job_id, x, y, data_id, metode_id, ruangan_id)
                     )
                     cur.execute(
                         "UPDATE lokalisasi_jobs SET status=%s, updated_at=%s WHERE id=%s",

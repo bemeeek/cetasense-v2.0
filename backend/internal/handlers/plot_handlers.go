@@ -530,7 +530,7 @@ func (h *PlotHandler) GetPlots(w http.ResponseWriter, r *http.Request) {
 	// 7) Response JSON
 	resp := map[string]interface{}{
 		"meta": map[string]interface{}{
-			"method":      "BNR robust-sigma (MAD)",
+			"method":      "Band-to-Noise Ratio robust-σ (Median Absolute Deviation)",
 			"clipDb":      []float64{clipDbLo, clipDbHi},
 			"channels":    numChannels,
 			"subcarriers": numSubcarriers,

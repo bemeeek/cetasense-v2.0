@@ -74,7 +74,7 @@ const PlotDataComponent: React.FC<PlotDataProps> = ({ data }) => {
       title: { text: "BNR (dB)", font: { size: 13, color: "#374151" } },
       gridcolor: "#f3f4f6",
       linecolor: "#e5e7eb",
-      range: [clipLo, clipHi],
+      autorange: true,
       zeroline: false,
     },
     showlegend: false,
@@ -220,7 +220,7 @@ const PlotDataComponent: React.FC<PlotDataProps> = ({ data }) => {
                       onClick={() => setActiveRank(channelIndex, item.rank)}
                       color={colorName}
                     >
-                      Peringkat {item.rank} - Subcarrier ke-{item.subcarrier}
+                      Peringkat {item.rank}
                     </TabButton>
                   ))}
               </div>
