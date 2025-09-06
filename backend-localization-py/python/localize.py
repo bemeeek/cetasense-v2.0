@@ -73,23 +73,27 @@ def run_localization(data_path: str, model_path: str) -> Dict[str, float]:
     model = load_model(model_path)
     if not hasattr(model, "predict_from_file"):
         raise AttributeError("Model tidak punya predict_from_file(...). Pakai model fingerprint notebook-style.")
-
-    sig = inspect.signature(model.predict_from_file)
-    if "k" in sig.parameters:
+    
+    try:
         out = model.predict_from_file(
             meas_csv_path=data_path,
             k=None,
-            aggregate="auto",      # gabung prefix '..._sN' jadi satu scan
+            aggregate="auto",
             aggregate_fn="mean",
             out_csv_path=None
         )
-    else:
-        out = model.predict_from_file(
-            meas_csv_path=data_path,
-            aggregate="auto",      # gabung prefix '..._sN' jadi satu scan
-            aggregate_fn="mean",
-            out_csv_path=None
-        )
+    except TypeError as e:
+        msg = str(e)
+        if "unexpected keyword argument" in msg and "'k'" in msg:
+            out = model.predict_from_file(
+                meas_csv_path=data_path,
+                aggregate="auto",
+                aggregate_fn="mean",
+                out_csv_path=None
+            )
+        else:
+            raise
+
 
     if not {"est_x", "est_y"}.issubset(out.columns):
         raise ValueError("Output model tidak memiliki kolom est_x dan est_y.")
@@ -115,31 +119,3 @@ def test_model_loading(model_path: str) -> bool:
 def clear_model_cache():
     load_model.cache_clear()
     logger.info("🧹 Model cache cleared")
-
-if __name__ == "__main__":
-
-    import argparse, json, sys, logging
-    import inspect
-
-    parser = argparse.ArgumentParser(description="Run indoor localization and print estimated x,y")
-    parser.add_argument("--data", required=True, help="Path ke CSV fingerprint (wajib kolom: sample_id, anchor_id, rssi)")
-    parser.add_argument("--model", required=True, help="Path ke model (.pkl atau .py yang punya predict_from_file)")
-    parser.add_argument("--fmt", choices=["json", "csv"], default="json", help="Output format")
-    parser.add_argument("--verbose", action="store_true", help="Tampilkan log")
-    args = parser.parse_args()
-
-    logging.basicConfig(
-        level=logging.INFO if args.verbose else logging.WARNING,
-        format="%(message)s"
-    )
-
-    try:
-        res = run_localization(args.data, args.model)
-        if args.fmt == "json":
-            print(json.dumps(res))
-        else:
-            print(f"{float(res['x'])},{float(res['y'])}")
-    except Exception as e:
-        logging.exception("Gagal menjalankan lokalisasi")
-        sys.exit(1)
-
