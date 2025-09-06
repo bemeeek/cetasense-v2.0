@@ -46,6 +46,11 @@ services:
       - mariadb_data:/var/lib/mysql
     ports:
       - "3307:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=Rafi111703
+      - MYSQL_DATABASE=bismillahta
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=Rafi111703
     networks:
       - app-network
 
