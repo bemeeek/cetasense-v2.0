@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import PlotDataComponent, { type BnrHandlerResponse } from "../components/PlotData"; // ← Ubah ini
+import PlotDataComponent from "../components/PlotData"; // ← Ubah ini
 import { api, fetchCSIFileMeta, type CSIFileMeta } from "../services/api";
 import Sidebar from "../components/sidebar/sidebar";
 import { WifiIcon } from "@heroicons/react/24/outline";
@@ -8,7 +8,7 @@ import { TabSwitcherData } from "../components/switchertab/TabSwitcherData";
 const PlotPage: React.FC = () => {
   const [files, setFiles] = useState<CSIFileMeta[]>([]);
   const [selected, setSelected] = useState<CSIFileMeta | null>(null);
-  const [plotData, setPlotData] = useState<BnrHandlerResponse | null>(null); // ← Ubah ini
+  const [plotData, setPlotData] = useState<any | null>(null); // ← Ubah ini
   const [loading, setLoading] = useState(false);
 
   // Load list of CSV files
@@ -80,13 +80,11 @@ const PlotPage: React.FC = () => {
           <div className="flex flex-row h-10 gap-4 mb-4">
             <Select
               value={selected ? selected.id : ""}
-              placeholder="Pilih file CSI"
+              placeholder="Pilih data RSSI"
               options={files.map((f) => ({ value: f.id, label: f.file_name }))}
-              onChange={(value) =>
-                setSelected(files.find((f) => f.id === value) || null)
-              }
+              onChange={(value) => setSelected(files.find((f) => f.id === value) || null)}
               disabled={files.length === 0 || loading}
-            />
+                />
             <button
               onClick={onSubmit}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg transition duration-200 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50"
@@ -98,11 +96,9 @@ const PlotPage: React.FC = () => {
         </div>
       </div>
       {loading && <p>Loading data…</p>}
-      <div className="flex-1 h-fit overflow-y-auto">
-        {plotData && !loading && (
-          <PlotDataComponent data={plotData} />
-        )}
-      </div>
+          <div className="flex-1 h-fit overflow-y-auto">
+            {plotData && !loading && <PlotDataComponent data={plotData} />}
+          </div>
     </div>
   </div>
   </div>

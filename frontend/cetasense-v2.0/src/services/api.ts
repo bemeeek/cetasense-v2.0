@@ -82,6 +82,8 @@ api.interceptors.response.use((response) => {
 // Data types
 // ————————————————————————————————————————————————————————————————
 
+export type Anchor = { name: string; x: number; y: number };
+
 export interface Ruangan {
   id: string;
   nama_ruangan: string;
@@ -91,6 +93,8 @@ export interface Ruangan {
   posisi_y_tx: number;
   posisi_x_rx: number;
   posisi_y_rx: number;
+  mode: 'antenna' | 'anchor';
+  anchors?: Anchor[];
 }
 
 export interface RuanganCreate {

@@ -26,79 +26,88 @@ func NewRoomHandler(repo repositories.RuanganRepository) *RoomHandler {
 }
 
 func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
-	var request models.Ruangan
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+	var req models.CreateRuanganRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
-	// Validate request payload
-	if err := h.validate.Struct(request); err != nil {
-		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
+	if err := h.validate.Struct(req); err != nil {
+		respondError(w, http.StatusBadRequest, "Validation error: "+err.Error())
 		return
 	}
-	// Process request and generate room data
+
 	room := models.Ruangan{
-		NamaRuangan: request.NamaRuangan,
-		Panjang:     request.Panjang,
-		Lebar:       request.Lebar,
-		Posisi_X_TX: request.Posisi_X_TX,
-		Posisi_Y_TX: request.Posisi_Y_TX,
-		Posisi_X_RX: request.Posisi_X_RX,
-		Posisi_Y_RX: request.Posisi_Y_RX,
+		NamaRuangan: req.NamaRuangan,
+		Panjang:     req.Panjang,
+		Lebar:       req.Lebar,
+		Mode:        req.Mode,
+
+		Posisi_X_TX: req.Posisi_X_TX,
+		Posisi_Y_TX: req.Posisi_Y_TX,
+		Posisi_X_RX: req.Posisi_X_RX,
+		Posisi_Y_RX: req.Posisi_Y_RX,
 	}
+
+	if req.Mode == "anchor" {
+		room.Posisi_X_TX, room.Posisi_Y_TX, room.Posisi_X_RX, room.Posisi_Y_RX = 0, 0, 0, 0
+		room.SetAnchors(req.Anchors)
+	}
+
 	room.GenerateID()
-	// Save room to repository
+
 	if err := h.repo.Create(r.Context(), &room); err != nil {
-		http.Error(w, "Failed to create room: "+err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "Failed to create room: "+err.Error())
 		return
 	}
-	// Log total processing time
+
 	respondJSON(w, http.StatusCreated, room)
 }
 
 func (h *RoomHandler) UpdateRoom(w http.ResponseWriter, r *http.Request) {
-
-	// Get room ID from URL parameters
 	vars := mux.Vars(r)
 	id := vars["id"]
 	if id == "" {
 		respondError(w, http.StatusBadRequest, "Room ID is required")
 		return
 	}
-	// Decode JSON body
-	var request models.UpdateRuanganRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+
+	var req models.UpdateRuanganRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
-	// Validate request
-	if err := h.validate.Struct(request); err != nil {
-		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
+	if err := h.validate.Struct(req); err != nil {
+		respondError(w, http.StatusBadRequest, "Validation error: "+err.Error())
 		return
-	}
-	// Prepare room model
-	room := models.Ruangan{
-		ID:          id,
-		NamaRuangan: request.NamaRuangan,
-		Panjang:     request.Panjang,
-		Lebar:       request.Lebar,
-		Posisi_X_TX: request.Posisi_X_TX,
-		Posisi_Y_TX: request.Posisi_Y_TX,
-		Posisi_X_RX: request.Posisi_X_RX,
-		Posisi_Y_RX: request.Posisi_Y_RX,
 	}
 
-	// Update room in the repository
+	room := models.Ruangan{
+		ID:          id,
+		NamaRuangan: req.NamaRuangan,
+		Panjang:     req.Panjang,
+		Lebar:       req.Lebar,
+		Mode:        req.Mode,
+
+		Posisi_X_TX: req.Posisi_X_TX,
+		Posisi_Y_TX: req.Posisi_Y_TX,
+		Posisi_X_RX: req.Posisi_X_RX,
+		Posisi_Y_RX: req.Posisi_Y_RX,
+	}
+
+	if req.Mode == "anchor" {
+		room.Posisi_X_TX, room.Posisi_Y_TX, room.Posisi_X_RX, room.Posisi_Y_RX = 0, 0, 0, 0
+		room.SetAnchors(req.Anchors)
+	}
+
 	if err := h.repo.Update(r.Context(), &room); err != nil {
 		if err == sql.ErrNoRows {
 			respondError(w, http.StatusNotFound, "Room not found")
 			return
 		}
-		http.Error(w, "Failed to update room: "+err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "Failed to update room: "+err.Error())
 		return
 	}
 
-	// Log total update time
 	respondJSON(w, http.StatusOK, room)
 }
 
