@@ -75,7 +75,7 @@ const RoomSettingPage: React.FC = () => {
               Laman Pengaturan
             </h1>
             <p className="text-[17.2px] text-[#7a7a7a]">
-              Laman pengaturan memungkinkan anda untuk mengunggah algoritma pemosisian, data parameter CSI, dan mengatur ruangan untuk sistem pemosisian
+              Laman pengaturan memungkinkan anda untuk mengunggah algoritma penentuan posisi, data parameter RSSI, dan mengatur ruangan untuk sistem penentuan posisi.
             </p>
           </div>
         </header>

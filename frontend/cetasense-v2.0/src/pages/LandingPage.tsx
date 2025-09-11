@@ -27,9 +27,9 @@ const LandingPage: React.FC = () => {
                   pelacakan indoor menggunakan data Wi-Fi CSI. Fitur unggulan:
                 </p>
                 <ul className="list-disc list-inside space-y-3 text-base text-gray-700">
-                  <li>Upload & compare beberapa algoritma pemosisian.</li>
+                  <li>Upload & compare beberapa algoritma penentuan posisi.</li>
                   <li>Pengaturan multi-ruang untuk skenario berbeda.</li>
-                  <li>Dashboard real-time hasil pemosisian.</li>
+                  <li>Dashboard real-time hasil penentuan posisi.</li>
                 </ul>
               </div>
               <div className="w-full md:w-1/2">
@@ -59,16 +59,16 @@ const LandingPage: React.FC = () => {
                   />
                   <TimelineItem
                     icon={<WifiIcon className="w-6 h-6 text-blue-600" />}
-                    title="Lihat Hasil Pemosisian"
-                    description="Tinjau hasil pemosisian subjek menggunakan algoritma yang dipilih."
-                    linkText="Buka Hasil Pemosisian"
+                    title="Lihat Hasil Penentuan Posisi"
+                    description="Tinjau hasil penentuan posisi subjek menggunakan algoritma yang dipilih."
+                    linkText="Buka Hasil Penentuan Posisi"
                     to="/data-stream/lokalisasi"
                   />
                   <TimelineItem
                     icon={<WifiIcon className="w-6 h-6 text-blue-600" />}
                     title="Bandingkan Hasil"
                     description="Analisis & bandingkan akurasi dari beberapa algoritma berbeda."
-                    linkText="Bandingkan Hasil Pemosisian Sekarang"
+                    linkText="Bandingkan Hasil Penentuan Posisi Sekarang"
                     to="/data-stream/perbandingan"
                   />
                 </div>

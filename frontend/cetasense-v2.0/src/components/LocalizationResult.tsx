@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { type Ruangan } from '../services/api';
 
 interface Props {
@@ -12,6 +12,12 @@ export const LocalizationResult: React.FC<Props> = ({ ruangan, result, methods }
     panjang, lebar, posisi_x_tx, posisi_y_tx, posisi_x_rx, posisi_y_rx,
     nama_ruangan, mode, anchors = []
   } = ruangan;
+
+  const [showAnchorLines, setShowAnchorLines] = useState<boolean>(() => {
+    try { const v = localStorage.getItem('loc_showAnchorLines'); return v == null ? true : JSON.parse(v); }
+    catch { return true; }
+  });
+  useEffect(() => { try { localStorage.setItem('loc_showAnchorLines', JSON.stringify(showAnchorLines)); } catch {} }, [showAnchorLines]);
 
   // ukuran kanvas proporsional
   const maxSize = 500;
@@ -98,7 +104,7 @@ export const LocalizationResult: React.FC<Props> = ({ ruangan, result, methods }
   return (
     <div className="p-6 bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl shadow-lg">
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold mb-2 text-indigo-600">Hasil Pemosisian</h2>
+        <h2 className="text-3xl font-bold mb-2 text-indigo-600">Hasil Penentuan Posisi</h2>
         <p className="text-lg text-gray-700">Ruangan: <span className="font-semibold text-blue-500">{nama_ruangan}</span></p>
         <div className="flex justify-center gap-6 mt-4 text-sm text-gray-600">
           <span>Panjang (X): <strong>{panjang}m</strong></span>
@@ -107,8 +113,21 @@ export const LocalizationResult: React.FC<Props> = ({ ruangan, result, methods }
       </div>
 
       <div className="flex flex-col lg:flex-row items-start gap-8">
-        {/* Kanvas */}
+          {/* Kanvas */}
         <div className="flex-shrink-0">
+        {/* Toggle garis ke anchor */}
+          <div className="mb-3 flex items-center gap-2">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-emerald-600"
+              checked={showAnchorLines}
+              onChange={(e) => setShowAnchorLines(e.target.checked)}
+              disabled={mode !== 'anchor'}
+            />
+            <span className={`text-sm ${mode !== 'anchor' ? 'opacity-50' : ''}`}>
+              Tampilkan garis ke anchor
+            </span>
+          </div>
           <div className="relative bg-white border-2 border-gray-300 shadow-lg rounded-xl overflow-hidden" style={{ width, height }}>
             {/* Stage dengan padding agar marker tidak mepet */}
             <div className="absolute" style={{ left: PAD, right: PAD, top: PAD, bottom: PAD }}>
@@ -133,7 +152,7 @@ export const LocalizationResult: React.FC<Props> = ({ ruangan, result, methods }
                     {line(rxPct, subPct, 'rgba(245,158,11,0.6)')}   {/* RX → subjek */}
                   </>
                 )}
-                {mode === 'anchor' &&
+                {mode === 'anchor' && showAnchorLines &&
                   anchorPct.map((a, i) => (
                     <React.Fragment key={i}>
                       {line(a, subPct, 'rgba(16,185,129,0.6)')}     {/* Anchor i → subjek */}
@@ -186,14 +205,18 @@ export const LocalizationResult: React.FC<Props> = ({ ruangan, result, methods }
               </div>
             </div>
           )}
-
           <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Legenda</h3>
             {mode === 'anchor' ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-3 p-2"><div className="w-6 h-6 bg-emerald-600 rounded-full" /><span className="text-sm font-medium">Anchor Node</span></div>
                 <div className="flex items-center gap-3 p-2"><div className="w-7 h-7 bg-blue-600 rounded-full border-2 border-white flex items-center justify-center"><div className="w-2 h-2 bg-white rounded-full" /></div><span className="text-sm font-medium">Posisi Subjek</span></div>
-                <div className="flex items-center gap-3 p-2"><div className="w-4 h-1 bg-emerald-500" /><span className="text-sm font-medium">Garis ke Anchor</span></div>
+                {showAnchorLines && (
+                  <div className="flex items-center gap-3 p-2">
+                    <div className="w-4 h-1 bg-emerald-500" />
+                    <span className="text-sm font-medium">Garis ke Anchor</span>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-3">

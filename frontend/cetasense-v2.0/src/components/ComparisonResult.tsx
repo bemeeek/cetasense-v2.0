@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { type CSIFileMeta, type Ruangan } from '../services/api';
 
 interface Props {
@@ -11,6 +11,13 @@ interface Props {
 
 export const ComparisonResult: React.FC<Props> = ({ ruangan, results, methods, groundTruth }) => {
   const { panjang, lebar, posisi_x_tx, posisi_y_tx, posisi_x_rx, posisi_y_rx, nama_ruangan, mode, anchors = [] } = ruangan;
+
+   // Toggle garis ke anchor (persist)
+  const [showAnchorLines, setShowAnchorLines] = useState<boolean>(() => {
+    try { const v = localStorage.getItem('cmp_showAnchorLines'); return v == null ? true : JSON.parse(v); }
+    catch { return true; }
+  });
+  useEffect(() => { try { localStorage.setItem('cmp_showAnchorLines', JSON.stringify(showAnchorLines)); } catch {} }, [showAnchorLines]);
 
   const maxSize = 500;
   const ratio = panjang / lebar;
@@ -105,7 +112,7 @@ export const ComparisonResult: React.FC<Props> = ({ ruangan, results, methods, g
   return (
     <div className="p-6 bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl shadow-lg">
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold mb-2 text-indigo-600">Perbandingan Hasil Pemosisian</h2>
+        <h2 className="text-3xl font-bold mb-2 text-indigo-600">Perbandingan Hasil Penentuan Posisi</h2>
         <p className="text-lg text-gray-700">Ruangan: <span className="font-semibold text-blue-500">{nama_ruangan}</span></p>
         <div className="flex justify-center gap-6 mt-4 text-sm text-gray-600">
           <span>Panjang (X): <strong>{panjang}m</strong></span>
@@ -117,6 +124,19 @@ export const ComparisonResult: React.FC<Props> = ({ ruangan, results, methods, g
       <div className="flex flex-col lg:flex-row items-start gap-8">
         {/* Kanvas */}
         <div className="flex-shrink-0">
+          {/* Toggle garis ke anchor */}
+          <div className="mb-3 flex items-center gap-2">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-emerald-600"
+              checked={showAnchorLines}
+              onChange={(e) => setShowAnchorLines(e.target.checked)}
+              disabled={mode !== 'anchor'}
+           />
+           <span className={`text-sm ${mode !== 'anchor' ? 'opacity-50' : ''}`}>
+              Tampilkan garis ke anchor
+            </span>
+          </div>
           <div className="relative bg-white border-2 border-gray-300 shadow-lg rounded-xl overflow-hidden" style={{ width, height }}>
             {/* Stage berpadding */}
             <div className="absolute" style={{ left: PAD, right: PAD, top: PAD, bottom: PAD }}>
@@ -135,13 +155,13 @@ export const ComparisonResult: React.FC<Props> = ({ ruangan, results, methods, g
               {/* Garis koneksi */}
               <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
                 {/* run1 → anchors (MERAH) */}
-                {mode === 'anchor' && results.run1 && anchorPct.map((a, i) => (
+                {mode === 'anchor' && showAnchorLines && results.run1 && anchorPct.map((a, i) => (
                   <React.Fragment key={`r1-${i}`}>
                     {line(toPct(results.run1!.x, results.run1!.y), a, 'rgba(239, 68, 68, 0.6)')}
                   </React.Fragment>
                 ))}
                 {/* run2 → anchors (HIJAU) */}
-                {mode === 'anchor' && results.run2 && anchorPct.map((a, i) => (
+                {mode === 'anchor' && showAnchorLines && results.run2 && anchorPct.map((a, i) => (
                   <React.Fragment key={`r2-${i}`}>
                     {line(toPct(results.run2!.x, results.run2!.y), a, 'rgba(34, 197, 94, 0.6)')}
                   </React.Fragment>
@@ -232,8 +252,12 @@ export const ComparisonResult: React.FC<Props> = ({ ruangan, results, methods, g
                 <div className="flex items-center gap-3 p-2"><div className="w-6 h-6 bg-emerald-600 rounded-full" /><span className="text-sm font-medium">Anchor</span></div>
                 <div className="flex items-center gap-3 p-2"><div className="w-6 h-6 bg-red-600 rounded-full" /><span className="text-sm font-medium">Posisi Subjek 1</span></div>
                 <div className="flex items-center gap-3 p-2"><div className="w-6 h-6 bg-green-600 rounded-full" /><span className="text-sm font-medium">Posisi Subjek 2</span></div>
-                <div className="flex items-center gap-3 p-2"><div className="w-8 h-1 bg-red-500" /><span className="text-sm font-medium">Garis ke Anchor (Run 1)</span></div>
-                <div className="flex items-center gap-3 p-2"><div className="w-8 h-1 bg-green-500" /><span className="text-sm font-medium">Garis ke Anchor (Run 2)</span></div>
+                {showAnchorLines && (
+                 <>
+                    <div className="flex items-center gap-3 p-2"><div className="w-8 h-1 bg-red-500" /><span className="text-sm font-medium">Garis ke Anchor (Run 1)</span></div>
+                   <div className="flex items-center gap-3 p-2"><div className="w-8 h-1 bg-green-500" /><span className="text-sm font-medium">Garis ke Anchor (Run 2)</span></div>
+                 </>
+               )}
                 <div className="flex items-center gap-3 p-2"><div className="w-8 h-1 bg-indigo-700" /><span className="text-sm font-medium">Garis ke GT</span></div>
               </>
             ) : (

@@ -143,7 +143,7 @@ export const ComparisonPage: React.FC = () => {
               Data Stream
             </h1>
             <p className="text-[17.2px] text-[#7a7a7a]">
-              Laman Data Stream ini digunakan untuk melihat analisis data parameter CSI yang akan digunakan, melihat hasil sistem pemosisian subjek dalam ruang, dan membandingkan hasil dari dua algoritma yang berbeda.
+              Laman Data Stream ini digunakan untuk melihat analisis data parameter CSI yang akan digunakan, melihat hasil sistem penentuan posisi dalam ruang, dan membandingkan hasil dari dua algoritma yang berbeda.
             </p>
           </div>
         </header>
@@ -211,7 +211,7 @@ const LoadingIndicator = () => (
         <div className="animate-spin rounded-full h-6 w-6 border-t-[3px] border-blue-600 absolute top-0 left-0"></div>
       </div>
       <div>
-        <div className="text-sm font-semibold text-gray-800">Memproses Pemosisian</div>
+        <div className="text-sm font-semibold text-gray-800">Memproses Penentuan Posisi</div>
         <div className="text-xs text-gray-500">Harap tunggu...</div>
       </div>
     </div>
