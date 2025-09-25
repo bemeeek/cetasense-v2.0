@@ -143,7 +143,7 @@ export const ComparisonPage: React.FC = () => {
               Data Stream
             </h1>
             <p className="text-[17.2px] text-[#7a7a7a]">
-              Laman Data Stream ini digunakan untuk melihat analisis data parameter CSI yang akan digunakan, melihat hasil sistem penentuan posisi dalam ruang, dan membandingkan hasil dari dua algoritma yang berbeda.
+              Laman Data Stream ini digunakan untuk melihat analisis data parameter RSSI yang akan digunakan, melihat hasil sistem penentuan posisi, dan membandingkan hasil dari dua algoritma yang berbeda.
             </p>
           </div>
         </header>

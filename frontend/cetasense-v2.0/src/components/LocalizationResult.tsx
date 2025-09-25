@@ -139,9 +139,6 @@ export const LocalizationResult: React.FC<Props> = ({ ruangan, result, methods }
                 {[...Array(divY + 1)].map((_, i) => (
                   <div key={`h${i}`} className="absolute bg-gray-300" style={{ left: 0, right: 0, bottom: `${(i / divY) * 100}%`, height: 1, opacity: 0.6 }} />
                 ))}
-                {/* sumbu */}
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 z-10" />
-                <div className="absolute top-0 bottom-0 left-0 w-1 bg-green-600 z-10" />
               </div>
 
               {/* Garis koneksi */}

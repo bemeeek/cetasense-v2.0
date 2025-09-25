@@ -95,7 +95,8 @@ export const LocalizationPage: React.FC = () => {
           <WifiIcon className="w-[52px] h-[52px]" />
           <div className="ml-6">
             <h1 className="text-[23.5px] font-bold">Data Stream</h1>
-            <p className="text-[17.2px] text-[#7a7a7a]">Laman Data Stream ini digunakan untuk melihat analisis data parameter CSI yang akan digunakan, melihat hasil sistem penentuan posisi subjek dalam ruang, dan membandingkan hasil dari dua algoritma yang berbeda.
+            <p className="text-[17.2px] text-[#7a7a7a]">
+              Laman Data Stream ini digunakan untuk melihat analisis data parameter RSSI yang akan digunakan, melihat hasil sistem penentuan posisi, dan membandingkan hasil dari dua algoritma yang berbeda.
 </p>
           </div>
         </header>
